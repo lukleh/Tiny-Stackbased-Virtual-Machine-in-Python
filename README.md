@@ -15,29 +15,29 @@ Single file code for execution, single return value.
 python run.py <code.file> arg1 arg2 argN
 ```
 
-Example program
+Example program: python run.py data/sum.vm 1 5
 ```
 func rangesum ; return sum of numbers in range, upper bound included
 arg int ; lower bound
 arg int ; upper bound
 var int ; current sum
 var int ; increment
-load 0
-store 2
-load 0
-store 3
-push 1
-load 3
-add
+iload 0
+istore 2
+iload 0
+istore 3
+ipush 1
+iload 3
+iadd
 dup
-load 1
-if_cmpgt 7
+iload 1
+if_icmpgt 7
 dup
-store 3
-load 2
-add
-store 2
+istore 3
+iload 2
+iadd
+istore 2
 goto -11
-load 2
-return
+iload 2
+ireturn
 ```
