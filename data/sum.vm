@@ -1,0 +1,23 @@
+func rangesum ; return sum of numbers in range, upper bound included
+arg int ; lower bound
+arg int ; upper bound
+var int ; current sum
+var int ; increment
+iload 0
+istore 2
+iload 0
+istore 3
+ipush 1
+iload 3
+iadd
+dup
+iload 1
+if_icmpgt 7
+dup
+istore 3
+iload 2
+iadd
+istore 2
+goto -11
+iload 2
+ireturn
