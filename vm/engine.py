@@ -1,10 +1,14 @@
 # -*- coding: utf-8  -*-
+import sys
 import itertools
 import logging as log
 
 import vm.parser as parse
 from vm.exceptions import RuntimeException
 
+
+if sys.version_info[0] != 3:
+    raise Exception('need Python 3k to run')
 
 log.basicConfig(format='%(levelname)s %(message)s', level=log.DEBUG)
 
