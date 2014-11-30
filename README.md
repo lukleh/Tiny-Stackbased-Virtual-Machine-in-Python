@@ -16,7 +16,7 @@ Single file code for execution, single return value.
 python run.py <code.file> arg1 arg2 argN
 ```
 
-Example program: python run.py data/sum.yaml 1 5
+Example program in data/sum.yaml
 ```
 func:
     name: range sum #return sum of numbers in range, upper bound included
@@ -52,4 +52,8 @@ ins:
     - iload: sum
       label: L2
     - ireturn
+```
+run with
+```
+python run.py data/sum.yaml 1 5
 ```
