@@ -20,3 +20,11 @@ def test_value_int():
     vs = values.ValueInt(99)
     assert vs.value == 99
     pytest.raises(ValueException, values.ValueInt, '99')
+
+
+def test_value_float():
+    vs = values.ValueFloat()
+    assert vs.is_none
+    vs = values.ValueFloat(1/3)
+    assert vs.value == 1/3
+    pytest.raises(ValueException, values.ValueFloat, '99')

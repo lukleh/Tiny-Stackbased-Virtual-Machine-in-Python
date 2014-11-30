@@ -1,7 +1,15 @@
-func add1
-arg int
-var int
-iload 0
-istore 1
-ipush 1
-ireturn
+func:
+    name: range add1
+    args:
+        - label: a
+          type: int
+lvars:
+    - label: b
+      type: int
+
+ins:
+    - iload: a
+    - istore: b
+    - fpush: 1.1
+    - ipush: 1
+    - ireturn

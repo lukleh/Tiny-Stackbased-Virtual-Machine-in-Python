@@ -1,0 +1,17 @@
+func:
+    name: f
+    args:
+        - type: int
+lvars:
+    - label: x
+      type: int
+    - type: int
+    - label: y
+      type: float
+ins:
+    - ipush: 10
+    - ipush: 11
+    - iadd
+    - istore: 0
+    - iload: x
+    - ireturn

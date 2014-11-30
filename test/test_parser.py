@@ -1,61 +1,51 @@
 # -*- coding: utf-8  -*-
-import pytest
 
 import fixtures
-from vm import parser
-from vm import instructions
-from vm import values
-from vm.exceptions import ParserException, InstructionException
+import vm.instructions as ins
+from vm import parser as parser
+from vm.values import ValueFloat, ValueInt
 
 
-def test_skip_no_code():
-    assert len(list(parser.tokenize_string(""))) == 0
-    assert len(list(parser.tokenize_string(fixtures.load("tokenizer_blank_lines.code")))) == 0
-    assert len(list(parser.tokenize_string(fixtures.load("tokenizer_comments.code")))) == 0
-    assert len(list(parser.tokenize_string(fixtures.load("tokenizer_blank_lines_comments.code")))) == 0
-    assert len(list(parser.tokenize_string(fixtures.load("tokenizer_blank_not_trivial.code")))) == 0
-
-
-def test_args():
-    for name, ins in instructions.keywords.items():
-        if issubclass(ins, instructions.InsArgument):
-            pytest.raises(InstructionException, ins)
-            if issubclass(ins, instructions.InsArgNumber):
-                assert ins(values.ValueInt(1)) is not None
-                pytest.raises(InstructionException, ins, 'int')
-                pytest.raises(InstructionException, ins, values.ValueInt())
-            elif issubclass(ins, instructions.InsArgString):
-                assert ins(values.ValueString('int')) is not None
-                pytest.raises(InstructionException, ins, 1)
-                pytest.raises(InstructionException, ins, values.ValueString())
-        else:
-            assert ins() is not None
-
-
-def test_complete():
-    tokens = parser.tokenize_string(fixtures.load("parse_ok.code"))
-    assert len(list(tokens)) == 7
-
-
-def test_code_local_var():
-    c = parser.Code()
-    c.add_local_var(instructions.InsVar(values.ValueString('int')))
-    assert isinstance(c.get_var(0), values.ValueInt)
-    c.add_local_var(instructions.InsVar(values.ValueString('float')))
-    assert isinstance(c.get_var(1), values.ValueFloat)
-    c.add_local_var(instructions.InsVar(values.ValueString('int')))
-    c.add_local_var(instructions.InsVar(values.ValueString('int')))
+def test_code():
+    c = parser.Code(func={'name': 'n',
+                          'args': [
+                              {'type': 'int'},
+                              {'type': 'float'}
+                          ]},
+                    lvars=[
+                        {'type': 'int'},
+                        {'type': 'float'}
+                    ])
     assert c.var_count == 4
 
 
-def test_add_instruction():
-    c = parser.Code()
-    c.add_ins(instructions.keywords['ipush'](values.ValueInt(1)))
-    assert isinstance(c.instructions[0], instructions.keywords['ipush'])
-    assert c.instructions[0].argument.value == 1
+def test_func():
+    p = parser.parse_string(fixtures.load('func.code'))
+    assert p.function_name == 'multiple word name'
+    assert p.var_count == 2
+    assert p.argument_count == 2
+    assert p.labels == {'a': 0}
+    assert p.local_vars == [ValueInt(), ValueFloat()]
 
 
-def test_parse():
-    tokens = parser.tokenize_string(fixtures.load("parse_ok.code"))
-    code = parser.parse(tokens)
-    assert isinstance(code, parser.Code)
+def test_variables():
+    p = parser.parse_string(fixtures.load('variables.code'))
+    assert p.var_count == 4
+    assert p.argument_count == 1
+    assert p.labels == {'x': 1, 'y': 3}
+    assert p.local_vars == [ValueInt(), ValueInt(), ValueInt(), ValueFloat()]
+
+
+def test_instructions():
+    p = parser.parse_string(fixtures.load('instructions.code'))
+    assert p.ins_count == 6
+    assert p.instructions == [ins.InsIPush(ValueInt(10)),
+                              ins.InsIPush(ValueInt(11)),
+                              ins.InsIAdd(),
+                              ins.InsIStore(ValueInt(0)),
+                              ins.InsILoad(ValueInt(1)),
+                              ins.InsIReturn()]
+
+def test_whole():
+    p = parser.parse_string(fixtures.load('parse_ok.code'))
+    assert p

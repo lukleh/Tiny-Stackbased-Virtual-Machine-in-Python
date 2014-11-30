@@ -1,10 +1,13 @@
 # -*- coding: utf-8  -*-
-from vm.exceptions import ValueException
+from vm.exceptions import ValueException, RuntimeException
 
 
 class Value():
-    vtype = lambda x: x
+    vtype = None
     ex_message = 'base value'
+    is_string = False
+    is_int = False
+    is_float = False
 
     def __init__(self, value=None):
         if value is None or self.validatevalue(value):
@@ -27,6 +30,10 @@ class Value():
     def is_none(self):
         return self.value is None
 
+    @classmethod
+    def is_type(cls, o):
+        return cls is o.__class__
+
     def copy(self):
         return self.__class__(self.value)
 
@@ -40,13 +47,22 @@ class Value():
 class ValueString(Value):
     vtype = str
     ex_message = 'value not an string'
+    is_string = True
 
 
 class ValueInt(Value):
     vtype = int
     ex_message = 'value not an int'
+    is_int = True
 
 
 class ValueFloat(Value):
     vtype = float
     ex_message = 'value not an float'
+    is_float = True
+
+
+types = {
+    'int': ValueInt,
+    'float': ValueFloat
+}

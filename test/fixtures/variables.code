@@ -1,0 +1,10 @@
+func:
+    name: f
+    args:
+        - type: int
+lvars:
+    - label: x
+      type: int
+    - type: int
+    - label: y
+      type: float

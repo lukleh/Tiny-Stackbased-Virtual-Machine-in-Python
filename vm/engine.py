@@ -22,19 +22,26 @@ class VM:
         self.finished = False
         self.return_value = None
 
+    def stack_index(self, i):
+        try:
+            return self.stack[i]
+        except IndexError:
+            raise RuntimeException('accessing stack length %d at index %d' % (len(self.stack), i))
+
     def stack_push(self, v):
         self.stack.append(v)
 
     def stack_pop(self):
-        return self.stack.pop()
+        try:
+            return self.stack.pop()
+        except IndexError:
+            raise RuntimeException('stack is empty, cannot pop value')
 
     def load_file_code(self, fname):
-        tokens = parse.tokenize_file(fname)
-        self.code = parse.parse(tokens)
+        self.code = parse.parse_file(fname)
 
-    def load_string_code(self, fname):
-        tokens = parse.tokenize_string(fname)
-        self.code = parse.parse(tokens)
+    def load_string_code(self, data):
+        self.code = parse.parse_string(data)
 
     def check_arguments_count(self, args):
         if len(args) != self.code.argument_count:
@@ -64,7 +71,7 @@ class VM:
             if self.pc < 0:
                 raise RuntimeException('instruction pointer less than zero')
             if self.pc >= len(self.code.instructions):
-                raise RuntimeException('instruction pointer more than code')
+                raise RuntimeException('instruction pointer longer than code')
             ins = self.code.instructions[self.pc]
             log.info("{!s:<7}{!s:<28}{}".format(self.pc, ins, self.stack))
             self.execute_instruction(ins)
