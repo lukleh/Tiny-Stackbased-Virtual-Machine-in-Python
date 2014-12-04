@@ -16,7 +16,9 @@ def make_vm():
                           ]},
                     lvars=[
                         {'type': 'int'},
-                        {'type': 'float'}
+                        {'type': 'float'},
+                        {'type': 'intarray'},
+                        {'type': 'floatarray'}
                     ])
     vme = engine.VM(c)
     vme.assign_arguments(vme.convert_args([1, 1.0]))
@@ -35,10 +37,6 @@ def test_args():
                 assert ins(values.ValueFloat(1.0)) is not None
                 pytest.raises(InstructionException, ins, 'float')
                 pytest.raises(InstructionException, ins, values.ValueFloat())
-            elif issubclass(ins, instructions.InsArgString):
-                assert ins(values.ValueString('int')) is not None
-                pytest.raises(InstructionException, ins, 1)
-                pytest.raises(InstructionException, ins, values.ValueString())
         else:
             assert ins() is not None
 
@@ -109,7 +107,6 @@ def test_ins_fstore():
     vm = make_vm()
     value = values.ValueFloat(9.9)
     vm.stack_push(value)
-    print(vm.local_vars)
     ins(values.ValueInt(0)).execute(vm)
     assert vm.local_vars[0] == value
     assert vm.pc == 1
@@ -119,11 +116,11 @@ def test_ins_fstore():
 
 
 def test_ins_goto():
-    inst = instructions.keywords['istore'](values.ValueInt(0))
+    ins = instructions.keywords['goto']
     vm = make_vm()
     assert vm.pc == 0
-    instructions.keywords['goto'](values.ValueInt(1)).execute(vm)
-    assert vm.pc == 1
+    ins(values.ValueInt(10)).execute(vm)
+    assert vm.pc == 10
 
 
 def test_ins_ireturn():
@@ -132,7 +129,7 @@ def test_ins_ireturn():
     value = values.ValueInt(99)
     vm.stack_push(value)
     ins().execute(vm)
-    assert vm.pc == 1
+    assert vm.pc == 0
     assert vm.finished is True
     assert vm.return_value == value
     vm.stack_push(values.ValueFloat(9.9))
@@ -145,7 +142,7 @@ def test_ins_freturn():
     value = values.ValueFloat(9.9)
     vm.stack_push(value)
     ins().execute(vm)
-    assert vm.pc == 1
+    assert vm.pc == 0
     assert vm.finished is True
     assert vm.return_value == value
     vm.stack_push(values.ValueInt(99))
@@ -395,4 +392,129 @@ def test_ins_f2i():
     ins().execute(vm)
     assert vm.stack[0] == values.ValueInt(9)
     vm.stack_push(values.ValueInt(9))
+    pytest.raises(RuntimeException, ins().execute, vm)
+
+
+def test_newarray():
+    ins = instructions.keywords['newarray']
+    vm = make_vm()
+    vm.stack_push(values.ValueInt(10))
+    ins(values.ValueInt(1)).execute(vm)
+    assert vm.stack_pop().__class__ == values.ValueFloatArrayRef
+
+
+def test_aload():
+    ins = instructions.keywords['aload']
+    vm = make_vm()
+    arr = values.ValueIntArrayRef()
+    vm.local_vars[4] = arr
+    ins(values.ValueInt(4)).execute(vm)
+    assert vm.stack_pop() == arr
+
+
+def test_astore():
+    ins = instructions.keywords['astore']
+    vm = make_vm()
+    arr = values.ValueIntArrayRef()
+    vm.stack_push(arr)
+    ins(values.ValueInt(4)).execute(vm)
+    assert vm.local_vars[4] == arr
+
+
+def test_aiload():
+    vt = values.ValueInt
+    ins = instructions.keywords['aiload']
+    vm = make_vm()
+    arr = values.ValueIntArrayRef()
+    arr.allocate(10)
+    arr[2] = values.ValueInt(4)
+    vm.stack_push(arr)
+    vm.stack_push(values.ValueInt(2))
+    ins().execute(vm)
+    assert vm.stack_pop() == vt(4)
+    vm.stack_push(arr)
+    vm.stack_push(values.ValueInt(1))
+    ins().execute(vm)
+    sv = vm.stack_pop()
+    assert sv.is_none
+    assert sv.__class__ == vt
+
+
+def test_afload():
+    vt = values.ValueFloat
+    ins = instructions.keywords['afload']
+    vm = make_vm()
+    arr = values.ValueFloatArrayRef()
+    arr.allocate(10)
+    arr[2] = values.ValueFloat(4.0)
+    vm.stack_push(arr)
+    vm.stack_push(values.ValueInt(2))
+    ins().execute(vm)
+    assert vm.stack_pop() == vt(4.0)
+    vm.stack_push(arr)
+    vm.stack_push(values.ValueInt(1))
+    ins().execute(vm)
+    sv = vm.stack_pop()
+    assert sv.is_none
+    assert sv.__class__ == vt
+
+
+def test_aistore():
+    vt = values.ValueInt
+    ins = instructions.keywords['aistore']
+    vm = make_vm()
+    arr = values.ValueIntArrayRef()
+    arr.allocate(10)
+    arr[2] = values.ValueInt(4)
+    vm.stack_push(arr)
+    vm.stack_push(values.ValueInt(0))
+    vm.stack_push(values.ValueInt(5))
+    ins().execute(vm)
+    assert arr[0] == vt(5)
+    assert arr[1].is_none
+    assert arr[1].__class__ == vt
+
+
+def test_afstore():
+    vt = values.ValueFloat
+    ins = instructions.keywords['afstore']
+    vm = make_vm()
+    arr = values.ValueFloatArrayRef()
+    arr.allocate(10)
+    arr[2] = values.ValueFloat(4.0)
+    vm.stack_push(arr)
+    vm.stack_push(values.ValueInt(0))
+    vm.stack_push(values.ValueFloat(5.0))
+    ins().execute(vm)
+    assert arr[0] == vt(5.0)
+    assert arr[1].is_none
+    assert arr[1].__class__ == vt
+
+
+def test_ins_array_length():
+    ins = instructions.keywords['arraylength']
+    vm = make_vm()
+    value = values.ValueFloatArrayRef()
+    value.allocate(10)
+    value[2] = values.ValueFloat(4.0)
+    vm.stack_push(value)
+    ins().execute(vm)
+    assert vm.pc == 1
+    v = vm.stack_pop()
+    assert v == values.ValueInt(10)
+    pytest.raises(RuntimeException, ins().execute, vm)
+
+
+def test_ins_areturn():
+    ins = instructions.keywords['areturn']
+    vm = make_vm()
+    value = values.ValueFloatArrayRef()
+    value.allocate(10)
+    value[2] = values.ValueFloat(4.0)
+    vm.stack_push(value)
+    ins().execute(vm)
+    assert vm.pc == 0
+    assert vm.finished is True
+    assert vm.return_value == value
+    vm.stack_push(values.ValueInt(99))
     pytest.raises(RuntimeException, ins().execute, vm)

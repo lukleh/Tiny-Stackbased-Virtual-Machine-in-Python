@@ -6,6 +6,11 @@ import logging as log
 import vm.parser as parse
 from vm.exceptions import RuntimeException
 
+from vm.values import ValueInt as INT
+from vm.values import ValueFloat as FLOAT
+from vm.values import ValueIntArrayRef as INTARRAY
+from vm.values import ValueFloatArrayRef as FLOATARRAY
+
 
 if sys.version_info[0] != 3:
     raise Exception('need Python 3k to run')
@@ -49,6 +54,9 @@ class VM:
                                    (self.code.argument_count, len(args)))
 
     def assign_arguments(self, args):
+        """
+        assign values from argument received to actual variables inside VM
+        """
         self.check_arguments_count(args)
         self.local_vars = []
         for arg_value, loc_var in itertools.zip_longest(args, self.code.local_vars):
@@ -63,6 +71,11 @@ class VM:
                 self.local_vars.append(loc_var.__class__())
 
     def run(self, *args):
+        """
+        main run loop
+        expects ready arguments as produced from VM.convert_args
+        iterates the instruction list and executes instruction on index self.pc
+        """
         log.info('{!s:<15}{}'.format('args', len(args)))
         log.info('{!s:<15}{}'.format('local vars', len(self.code.local_vars)))
         log.info('{!s:<15}{}'.format('instructions', len(self.code.instructions)))
@@ -73,11 +86,23 @@ class VM:
             if self.pc >= len(self.code.instructions):
                 raise RuntimeException('instruction pointer longer than code')
             ins = self.code.instructions[self.pc]
-            log.info("{!s:<7}{!s:<28}{}".format(self.pc, ins, self.stack))
-            self.execute_instruction(ins)
+            log.info("pc {!s:<7}{!s:<28}stack {}".format(self.pc, ins, self.stack))
+            ins.execute(self)
         return self.return_value
 
+    @property
+    def args_types(self):
+        """
+        yield arguments (as Value* class) as defined in code source
+
+        """
+        for i in range(self.code.argument_count):
+            yield self.code.local_vars[i]
+
     def convert_args(self, args):
+        """
+        covert argument values into form that can be accepted by Value* classes
+        """
         self.check_arguments_count(args)
         cargs = []
         for i in range(self.code.argument_count):
@@ -88,6 +113,3 @@ class VM:
                 raise RuntimeException(
                     'cannot convert argument at possition {0} value:{1} to {2}'.format(i, args[i], lv.vtype))
         return cargs
-
-    def execute_instruction(self, ins):
-        ins.execute(self)

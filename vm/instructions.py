@@ -2,7 +2,7 @@
 import operator
 import functools
 
-from vm.values import Value, ValueInt, ValueFloat, ValueString
+from vm.values import Value, ValueInt, ValueFloat, ValueIntArrayRef, ValueFloatArrayRef, ArrayObjectRef
 from vm.exceptions import InstructionException, RuntimeException
 
 
@@ -47,6 +47,8 @@ class InsArgument(Instruction):
     def __init__(self, arg=None):
         if arg is None:
             raise InstructionException('instruction argument is None')
+        if type(arg) == type:
+            raise InstructionException('argument cannot be class, must be an instance')
         if not isinstance(arg, Value):
             raise InstructionException('instruction argument not type Value: %s' % arg.__class__)
         if arg.is_none:
@@ -57,14 +59,6 @@ class InsArgument(Instruction):
         c = super().__eq__(other)
         v = self.argument == other.argument
         return c and v
-
-
-class InsArgString(InsArgument):
-
-    def __init__(self, arg=None):
-        super().__init__(arg)
-        if not isinstance(self.argument, ValueString):
-            raise InstructionException('ins with string argument, got type: %s' % self.argument.value.__class__)
 
 
 class InsArgNumber(InsArgument):
@@ -82,18 +76,6 @@ class InsArgInteger(InsArgNumber):
 
 class InsArgFloat(InsArgNumber):
     arg_class = ValueFloat
-
-
-class InsTypeArg(InsArgString):
-
-    def __init__(self, arg=None):
-        super().__init__(arg)
-        if self.argument.value.lower() == 'int':
-            self.argument = ValueInt()
-        elif self.argument.value.lower() == 'float':
-            self.argument = ValueFloat()
-        else:
-            raise InstructionException('bad variable type: %s' % self.argument.value)
 
 
 class InsCompareBase(InsArgInteger):
@@ -147,10 +129,34 @@ class InsFMathBase(InsMathBase):
         self._execute(vm, result_class=ValueFloat)
 
 
+class InsArrayLoad(Instruction):
+    arr_type = None
+
+    @ExpectedValues(ArrayObjectRef, ValueInt, no_nulls=True)
+    def execute(self, vm):
+        index = vm.stack_pop().value
+        arr = vm.stack_pop()
+        arr.contains_type(self.arr_type)
+        vm.stack_push(arr[index])
+        vm.pc += 1
+
+
+class InsArrayStore(Instruction):
+    arr_type = None
+
+    def _execute(self, vm):
+        value = vm.stack_pop()
+        index = vm.stack_pop().value
+        arr = vm.stack_pop()
+        arr.contains_type(self.arr_type)
+        arr[index] = value
+        vm.pc += 1
+
+
 class InsIPush(InsArgInteger):
     """
     code> ipush <value>
-    value: number
+    value: int
 
     stack: -> value
 
@@ -164,7 +170,7 @@ class InsIPush(InsArgInteger):
 class InsFPush(InsArgFloat):
     """
     code> fpush <value>
-    value: number
+    value: float
 
     stack: -> value
 
@@ -177,8 +183,7 @@ class InsFPush(InsArgFloat):
 
 class InsILoad(InsArgInteger):
     """
-    code> iload <index>
-    index: number
+    code> iload <var>
 
     stack: value ->
 
@@ -191,8 +196,7 @@ class InsILoad(InsArgInteger):
 
 class InsFLoad(InsArgInteger):
     """
-    code> fload <index>
-    index: number
+    code> fload <var>
 
     stack: value ->
 
@@ -205,8 +209,7 @@ class InsFLoad(InsArgInteger):
 
 class InsIStore(InsArgInteger):
     """
-    code> istore <index>
-    index: number
+    code> istore <var>
 
     stack: value ->
 
@@ -220,8 +223,7 @@ class InsIStore(InsArgInteger):
 
 class InsFStore(InsArgInteger):
     """
-    code> fstore <index>
-    index: number
+    code> fstore <var>
 
     stack: value ->
 
@@ -235,12 +237,11 @@ class InsFStore(InsArgInteger):
 
 class InsGoto(InsArgInteger):
     """
-    code> goto <offset>
-    offset: number
+    code> goto <var>
 
     stack: ->
 
-    move pointer by offset, can be negative
+    move pointer to <var>, can be negative
     """
     def execute(self, vm):
         # TODO validation should be done statically during code loading
@@ -259,7 +260,6 @@ class InsIReturn(Instruction):
     def execute(self, vm):
         vm.finished = True
         vm.return_value = vm.stack_pop()
-        vm.pc += 1
 
 
 class InsFReturn(Instruction):
@@ -274,7 +274,6 @@ class InsFReturn(Instruction):
     def execute(self, vm):
         vm.finished = True
         vm.return_value = vm.stack_pop()
-        vm.pc += 1
 
 
 class InsNop(Instruction):
@@ -296,7 +295,7 @@ class InsPop(Instruction):
 
     stack: value ->
 
-    pops value from stack
+    pops value from stack and discards it
     """
     @staticmethod
     def execute(vm):
@@ -339,167 +338,167 @@ class InsSwap(Instruction):
 
 class InsIIfCmpEq(InsICompareBase):
     """
-    code> if_icmpeq <offset>
-    offset: number
+    code> if_icmpeq <var>
 
     stack: value1, value2 ->
     value1: integer
     value2: integer
-    if two values are equal, move pointer by offset
+
+    if two values are equal, move pointer to <var>
     """
     opr = operator.eq
 
 
 class InsIIfCmpNe(InsICompareBase):
     """
-    code> if_icmpne <offset>
-    offset: number
+    code> if_icmpne <var>
 
     stack: value1, value2 ->
     value1: integer
     value2: integer
-    if two values are not equal, move pointer by offset
+
+    if two values are not equal, move pointer to <var>
     """
     opr = operator.ne
 
 
 class InsIIfCmpGe(InsICompareBase):
     """
-    code> if_icmpge <offset>
-    offset: number
+    code> if_icmpge <var>
 
     stack: value1, value2 ->
     value1: integer
     value2: integer
-    if value1 is greater or equal to value2, move pointer by offset
+
+    if value1 is greater or equal to value2, move pointer to <var>
     """
     opr = operator.ge
 
 
 class InsIIfCmpGt(InsICompareBase):
     """
-    code> if_icmpgt <offset>
-    offset: number
+    code> if_icmpgt <var>
 
     stack: value1, value2 ->
     value1: integer
     value2: integer
-    if value1 is greater than value2, move pointer by offset
+
+    if value1 is greater than value2, move pointer to <var>
     """
     opr = operator.gt
 
 
 class InsIIfCmpLe(InsICompareBase):
     """
-    code> if_icmple <offset>
-    offset: number
+    code> if_icmple <var>
 
     stack: value1, value2 ->
     value1: integer
     value2: integer
-    if value1 is lower or equal than value2, move pointer by offset
+
+    if value1 is lower or equal than value2, move pointer to <var>
     """
     opr = operator.le
 
 
 class InsIIfCmpLt(InsICompareBase):
     """
-    code> if_icmplt <offset>
-    offset: number
+    code> if_icmplt <var>
 
     stack: value1, value2 ->
     value1: integer
     value2: integer
-    if value1 is lower than value2, move pointer by offset
+
+    if value1 is lower than value2, move pointer to <var>
     """
     opr = operator.lt
 
 
 class InsFIfCmpEq(InsFCompareBase):
     """
-    code> if_fcmpeq <offset>
-    offset: number
+    code> if_fcmpeq <var>
 
     stack: value1, value2 ->
     value1: float
     value2: float
-    if two values are equal, move pointer by offset
+
+    if two values are equal, move pointer to <var>
     """
     opr = operator.eq
 
 
 class InsFIfCmpNe(InsFCompareBase):
     """
-    code> if_fcmpne <offset>
-    offset: number
+    code> if_fcmpne <var>
 
     stack: value1, value2 ->
     value1: float
     value2: float
-    if two values are not equal, move pointer by offset
+
+    if two values are not equal, move pointer to <var>
     """
     opr = operator.ne
 
 
 class InsFIfCmpGe(InsFCompareBase):
     """
-    code> if_fcmpge <offset>
-    offset: number
+    code> if_fcmpge <var>
 
     stack: value1, value2 ->
     value1: float
     value2: float
-    if value1 is greater or equal to value2, move pointer by offset
+
+    if value1 is greater or equal to value2, move pointer to <var>
     """
     opr = operator.ge
 
 
 class InsFIfCmpGt(InsFCompareBase):
     """
-    code> if_fcmpgt <offset>
-    offset: number
+    code> if_fcmpgt <var>
 
     stack: value1, value2 ->
     value1: float
     value2: float
-    if value1 is greater than value2, move pointer by offset
+
+    if value1 is greater than value2, move pointer to <var>
     """
     opr = operator.gt
 
 
 class InsFIfCmpLe(InsFCompareBase):
     """
-    code> if_fcmple <offset>
-    offset: number
+    code> if_fcmple <var>
 
     stack: value1, value2 ->
     value1: float
     value2: float
-    if value1 is lower or equal than value2, move pointer by offset
+
+    if value1 is lower or equal than value2, move pointer to <var>
     """
     opr = operator.le
 
 
 class InsFIfCmpLt(InsFCompareBase):
     """
-    code> if_fcmplt <offset>
-    offset: number
+    code> if_fcmplt <var>
 
     stack: value1, value2 ->
     value1: float
     value2: float
-    if value1 is lower than value2, move pointer by offset
+
+    if value1 is lower than value2, move pointer to <var>
     """
     opr = operator.lt
 
 
 class InsIfNonNull(InsArgInteger):
     """
-    code> ifnonnull <offset>
-    offset: number
+    code> ifnonnull <var>
 
     stack: value ->
-    if value is not null, move pointer by offset
+
+    if value is not null, move pointer to <var>
     """
     def execute(self, vm):
         val = vm.stack_pop()
@@ -511,11 +510,11 @@ class InsIfNonNull(InsArgInteger):
 
 class InsIfNull(InsArgInteger):
     """
-    code> ifnull <offset>
-    offset: number
+    code> ifnull <var>
 
     stack: value ->
-    if value is null, move pointer by offset
+
+    if value is null, move pointer to <var>
     """
     def execute(self, vm):
         val = vm.stack_pop()
@@ -636,6 +635,7 @@ class InsFloat2Int(Instruction):
     stack: value1 -> value2
     value1: float
     value2: int
+
     converts float to int
     """
     @ExpectedValues(ValueFloat)
@@ -653,6 +653,7 @@ class InsInt2Float(Instruction):
     stack: value1 -> value2
     value1: int
     value2: float
+
     converts int to float
     """
     @ExpectedValues(ValueInt)
@@ -661,6 +662,165 @@ class InsInt2Float(Instruction):
         pval = float(val1.value)
         vm.stack_push(ValueFloat(pval))
         vm.pc += 1
+
+
+class InsNewArray(InsArgInteger):
+    """
+    code> newarray <var>
+
+    stack: value1 -> value2
+    value1: int
+    value2: reference
+
+    makes an array of size value1 with type <var>
+    """
+
+    def __init__(self, arg=None):
+        super().__init__(arg)
+        if self.argument.value == 0:
+            self.array_type = ValueIntArrayRef
+        elif self.argument.value == 1:
+            self.array_type = ValueFloatArrayRef
+        else:
+            raise InstructionException('newarray can accept only type 0 or 1, received %s' % self.argument.value)
+
+    @ExpectedValues(ValueInt, no_nulls=True)
+    def execute(self, vm):
+        size = vm.stack_pop().value
+        arr = self.array_type()
+        arr.allocate(asize=size)
+        vm.stack_push(arr)
+        vm.pc += 1
+
+
+class InsALoad(InsArgInteger):
+    """
+    code> aload <var>
+
+    stack: -> arrayref
+    arrayref: reference
+
+    load array reference from local variable <var>
+    """
+
+    def execute(self, vm):
+        vm.stack_push(vm.local_vars[self.argument.value])
+        vm.pc += 1
+
+
+class InsAStore(InsArgInteger):
+    """
+    code> astore <var>
+
+    stack: value ->
+    value: reference
+
+    store array reference to local variable <var>
+    """
+
+    @ExpectedValues(ArrayObjectRef)
+    def execute(self, vm):
+        arr = vm.stack_pop()
+        if vm.local_vars[self.argument.value].__class__ != arr.__class__:
+            raise RuntimeException('arrays differ in inner type, cannot assign')
+        vm.local_vars[self.argument.value] = arr
+        vm.pc += 1
+
+
+class InsAILoad(InsArrayLoad):
+    """
+    code> aiload
+
+    stack: value1, value2 -> value3
+    value1: reference
+    value2: int
+    value3: int
+
+    load an int from an array
+    """
+    arr_type = ValueInt
+
+
+class InsAFLoad(InsArrayLoad):
+    """
+    code> afload
+
+    stack: value1, value2 -> value3
+    value1: reference
+    value2: int
+    value3: float
+
+    load an float from an array
+    """
+    arr_type = ValueFloat
+
+
+class InsArrayLength(Instruction):
+    """
+    code> arraylength
+
+    stack: value1 -> value2
+    value1: reference
+    value2: int
+
+    returns length of an array
+    """
+
+    @ExpectedValues(ArrayObjectRef)
+    def execute(self, vm):
+        arr = vm.stack_pop()
+        vm.stack_push(ValueInt(arr.length))
+        vm.pc += 1
+
+
+class InsAIStore(InsArrayStore):
+    """
+    code> aistore
+
+    stack: ref, index, value ->
+    ref: arrayref
+    index: int
+    value: int
+
+    store an int to array index
+    """
+    arr_type = ValueInt
+
+    @ExpectedValues(ArrayObjectRef, ValueInt, ValueInt)
+    def execute(self, vm):
+        self._execute(vm)
+
+
+class InsAFStore(InsArrayStore):
+    """
+    code> afstore
+
+    stack: ref, index, value ->
+    ref: arrayref
+    index: int
+    value: float
+
+    store an float to array index
+    """
+    arr_type = ValueFloat
+
+    @ExpectedValues(ArrayObjectRef, ValueInt, ValueFloat)
+    def execute(self, vm):
+        self._execute(vm)
+
+
+class InsAReturn(Instruction):
+    """
+    code> areturn
+
+    stack: value ->
+
+    pops value from stack and set it as return value of the code and finishes execution
+    """
+    @ExpectedValues(ArrayObjectRef)
+    def execute(self, vm):
+        vm.finished = True
+        vm.return_value = vm.stack_pop()
 
 
 keywords = {
@@ -706,5 +866,15 @@ keywords = {
     'fdiv': InsFDiv,
 
     'f2i': InsFloat2Int,
-    'i2f': InsInt2Float
+    'i2f': InsInt2Float,
+
+    'newarray': InsNewArray,
+    'aload': InsALoad,
+    'astore': InsAStore,
+    'aiload': InsAILoad,
+    'afload': InsAFLoad,
+    'aistore': InsAIStore,
+    'afstore': InsAFStore,
+    'arraylength': InsArrayLength,
+    'areturn': InsAReturn
     }

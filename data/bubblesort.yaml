@@ -1,0 +1,81 @@
+
+# bubble sort
+# return integer array sorted
+# input: integer array
+# example:
+# array = [5,2,3,1,4]
+# result = [1,2,3,4,5]
+
+func:
+    name: sort array
+    args:
+        - label: array
+          type: intarray
+lvars:
+    - label: index
+      type: int
+    - label: swapped
+      type: int
+    - label: length
+      type: int
+
+ins:
+    - aload: array
+    - arraylength
+    - istore: length
+    - ipush: 0
+      label: newpass
+    - dup
+    - istore: swapped
+    - istore: index
+    - iload: index
+      label: startloop
+    - ipush: 1
+    - iadd
+    - dup
+    - iload: length
+    - if_icmpeq: endloop
+    - dup
+    - istore: index
+    - aload: array
+    - swap
+    - aiload
+    - aload: array
+    - iload: index
+    - ipush: 1
+    - isub
+    - aiload
+    - if_icmpge: startloop
+    - aload: array
+    - iload: index
+    - ipush: 1
+    - isub
+    - aiload
+
+    - aload: array
+    - iload: index
+    - aiload
+
+    - aload: array
+    - swap
+    - iload: index
+    - ipush: 1
+    - isub
+    - swap
+    - aistore # bug
+
+    - aload: array
+    - swap
+    - iload: index
+    - swap
+    - aistore
+    - ipush: 1
+    - istore: swapped
+    - goto: startloop
+
+    - iload: swapped
+      label: endloop
+    - ipush: 0
+    - if_icmpne: newpass
+    - aload: array
+    - areturn
