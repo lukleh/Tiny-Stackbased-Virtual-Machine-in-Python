@@ -6,7 +6,7 @@ import argparse
 if sys.version_info < (3, 0):
     raise Exception('need Python 3k to run')
 
-from vm import engine
+from TSBVMIP import engine
 
 
 # just to be sure, exit if not run as main
@@ -41,7 +41,7 @@ for i, lvt in enumerate(m.args_types):
         parser.add_argument(name, type=float, nargs='+', required=True, help='float values, will be packed to an array')
 args = parser.parse_args()
 
-# arguments parsed ok, convert to list to pass for converting to vm values and further
+# arguments parsed ok, convert to list to pass for converting to TSBVMIP values and further
 pargs = []
 for i, _ in enumerate(m.args_types):
     name = 'arg%d' % i

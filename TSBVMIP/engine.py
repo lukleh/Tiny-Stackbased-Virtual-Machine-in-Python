@@ -3,13 +3,13 @@ import sys
 import itertools
 import logging as log
 
-import vm.parser as parse
-from vm.exceptions import RuntimeException
+from .yparser import parse_file, parse_string
+from .exceptions import RuntimeException
 
-from vm.values import ValueInt as INT
-from vm.values import ValueFloat as FLOAT
-from vm.values import ValueIntArrayRef as INTARRAY
-from vm.values import ValueFloatArrayRef as FLOATARRAY
+from .values import ValueInt as INT
+from .values import ValueFloat as FLOAT
+from .values import ValueIntArrayRef as INTARRAY
+from .values import ValueFloatArrayRef as FLOATARRAY
 
 
 if sys.version_info[0] != 3:
@@ -43,10 +43,10 @@ class VM:
             raise RuntimeException('stack is empty, cannot pop value')
 
     def load_file_code(self, fname):
-        self.code = parse.parse_file(fname)
+        self.code = parse_file(fname)
 
     def load_string_code(self, data):
-        self.code = parse.parse_string(data)
+        self.code = parse_string(data)
 
     def check_arguments_count(self, args):
         if len(args) != self.code.argument_count:

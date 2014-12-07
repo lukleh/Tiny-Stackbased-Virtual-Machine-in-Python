@@ -1,11 +1,14 @@
 # -*- coding: utf8 -*-
 import pytest
 
-import vm.values as values
-import vm.instructions as instructions
-import vm.engine as engine
-import vm.parser as parser
-from vm.exceptions import RuntimeException, InstructionException
+import TSBVMIP.values as values
+import TSBVMIP.instructions as instructions
+import TSBVMIP.engine as engine
+import TSBVMIP.yparser as parser
+from TSBVMIP.exceptions import RuntimeException, InstructionException
+
+
+VM_PC_START = 10
 
 
 def make_vm():
@@ -22,6 +25,7 @@ def make_vm():
                     ])
     vme = engine.VM(c)
     vme.assign_arguments(vme.convert_args([1, 1.0]))
+    vme.pc = VM_PC_START  # shift pointer so we can check absolute jumps
     return vme
 
 
@@ -43,12 +47,16 @@ def test_args():
 
 def test_expected_values():
     vm = make_vm()
-    instructions.keywords['ipush'](values.ValueInt(99)).execute(vm)
-    instructions.keywords['ipush'](values.ValueInt(99)).execute(vm)
-    ev = instructions.ExpectedValues(values.ValueInt, values.ValueInt)
-    assert ev(lambda x, y: True)(None, vm) is None
-    ev = instructions.ExpectedValues(values.ValueFloat, values.ValueFloat)
-    pytest.raises(RuntimeException, ev(lambda x, y: None), None, vm)
+    vm.stack_push(values.ValueInt(99))
+    vm.stack_push(values.ValueInt(99))
+
+    class T():
+        stack_input_arguments = [values.ValueInt, values.ValueInt]
+        stack_output_arguments = []
+        @instructions.check_inout_values
+        def f(self, _):
+            pass
+    pytest.raises(RuntimeException, T().f, vm)
 
 
 def test_ins_ipush():
@@ -56,7 +64,7 @@ def test_ins_ipush():
     value = values.ValueInt(99)
     assert len(vm.stack) == 0
     instructions.keywords['ipush'](value).execute(vm)
-    assert vm.pc == 1
+    assert vm.pc == VM_PC_START + 1
     assert vm.stack[0] == value
 
 
@@ -65,7 +73,7 @@ def test_ins_fpush():
     value = values.ValueFloat(9.9)
     assert len(vm.stack) == 0
     instructions.keywords['fpush'](value).execute(vm)
-    assert vm.pc == 1
+    assert vm.pc == VM_PC_START + 1
     assert vm.stack[0] == value
 
 
@@ -75,7 +83,7 @@ def test_ins_iload():
     vm.local_vars[0] = value
     assert len(vm.stack) == 0
     instructions.keywords['iload'](values.ValueInt(0)).execute(vm)
-    assert vm.pc == 1
+    assert vm.pc == VM_PC_START + 1
     assert vm.stack[0] == value
 
 
@@ -85,7 +93,7 @@ def test_ins_fload():
     vm.local_vars[0] = value
     assert len(vm.stack) == 0
     instructions.keywords['fload'](values.ValueInt(0)).execute(vm)
-    assert vm.pc == 1
+    assert vm.pc == VM_PC_START + 1
     assert vm.stack[0] == value
 
 
@@ -96,7 +104,7 @@ def test_ins_istore():
     vm.stack_push(value)
     ins(values.ValueInt(0)).execute(vm)
     assert vm.local_vars[0] == value
-    assert vm.pc == 1
+    assert vm.pc == VM_PC_START + 1
     assert len(vm.stack) == 0
     vm.stack_push(values.ValueFloat(9.9))
     pytest.raises(RuntimeException, ins(values.ValueInt(0)).execute, vm)
@@ -109,7 +117,7 @@ def test_ins_fstore():
     vm.stack_push(value)
     ins(values.ValueInt(0)).execute(vm)
     assert vm.local_vars[0] == value
-    assert vm.pc == 1
+    assert vm.pc == VM_PC_START + 1
     assert len(vm.stack) == 0
     vm.stack_push(values.ValueInt(99))
     pytest.raises(RuntimeException, ins(values.ValueInt(0)).execute, vm)
@@ -118,9 +126,8 @@ def test_ins_fstore():
 def test_ins_goto():
     ins = instructions.keywords['goto']
     vm = make_vm()
-    assert vm.pc == 0
-    ins(values.ValueInt(10)).execute(vm)
-    assert vm.pc == 10
+    ins(values.ValueInt(8)).execute(vm)
+    assert vm.pc == 8
 
 
 def test_ins_ireturn():
@@ -129,7 +136,7 @@ def test_ins_ireturn():
     value = values.ValueInt(99)
     vm.stack_push(value)
     ins().execute(vm)
-    assert vm.pc == 0
+    assert vm.pc == VM_PC_START
     assert vm.finished is True
     assert vm.return_value == value
     vm.stack_push(values.ValueFloat(9.9))
@@ -142,7 +149,7 @@ def test_ins_freturn():
     value = values.ValueFloat(9.9)
     vm.stack_push(value)
     ins().execute(vm)
-    assert vm.pc == 0
+    assert vm.pc == VM_PC_START
     assert vm.finished is True
     assert vm.return_value == value
     vm.stack_push(values.ValueInt(99))
@@ -152,7 +159,7 @@ def test_ins_freturn():
 def test_ins_nop():
     vm = make_vm()
     instructions.keywords['nop']().execute(vm)
-    assert vm.pc == 1
+    assert vm.pc == VM_PC_START + 1
     assert len(vm.stack) == 0
 
 
@@ -161,7 +168,7 @@ def test_ins_pop():
     vm.stack_push(values.ValueInt(99))
     assert len(vm.stack) == 1
     instructions.keywords['pop']().execute(vm)
-    assert vm.pc == 1
+    assert vm.pc == VM_PC_START + 1
     assert len(vm.stack) == 0
 
 
@@ -170,7 +177,7 @@ def test_ins_dup():
     vm.stack_push(values.ValueInt(99))
     assert len(vm.stack) == 1
     instructions.keywords['dup']().execute(vm)
-    assert vm.pc == 1
+    assert vm.pc == VM_PC_START + 1
     assert len(vm.stack) == 2
     assert vm.stack[0].__class__ == vm.stack[1].__class__
     assert vm.stack[0].value == vm.stack[1].value
@@ -186,7 +193,7 @@ def test_ins_swap():
     assert vm.stack[0].value == 99
     assert vm.stack[1].value == 5.5
     instructions.keywords['swap']().execute(vm)
-    assert vm.pc == 1
+    assert vm.pc == VM_PC_START + 1
     assert len(vm.stack) == 2
     assert isinstance(vm.stack[1], values.ValueInt)
     assert isinstance(vm.stack[0], values.ValueFloat)
@@ -207,7 +214,7 @@ def test_ins_if_icmpeq():
     vm.stack_push(values.ValueInt(99))
     vm.stack_push(values.ValueInt(100))
     ins(values.ValueInt(2)).execute(vm)
-    assert vm.pc == 1
+    assert vm.pc == VM_PC_START + 1
     vm.stack_push(values.ValueFloat(9.9))
     vm.stack_push(values.ValueFloat(9.9))
     pytest.raises(RuntimeException, ins(values.ValueInt(0)).execute, vm)
@@ -226,7 +233,7 @@ def test_ins_if_fcmpeq():
     vm.stack_push(values.ValueFloat(9.9))
     vm.stack_push(values.ValueFloat(9.91))
     ins(values.ValueInt(2)).execute(vm)
-    assert vm.pc == 1
+    assert vm.pc == VM_PC_START + 1
     vm.stack_push(values.ValueInt(99))
     vm.stack_push(values.ValueInt(99))
     pytest.raises(RuntimeException, ins(values.ValueInt(0)).execute, vm)
@@ -320,7 +327,7 @@ def test_ins_iadd():
     vm.stack_push(values.ValueInt(100))
     vm.stack_push(values.ValueInt(101))
     ins().execute(vm)
-    assert vm.pc == 1
+    assert vm.pc == VM_PC_START + 1
     assert vm.stack[0] == values.ValueInt(201)
     vm.stack_push(values.ValueFloat(9.9))
     vm.stack_push(values.ValueFloat(9.9))
@@ -499,7 +506,7 @@ def test_ins_array_length():
     value[2] = values.ValueFloat(4.0)
     vm.stack_push(value)
     ins().execute(vm)
-    assert vm.pc == 1
+    assert vm.pc == VM_PC_START + 1
     v = vm.stack_pop()
     assert v == values.ValueInt(10)
     pytest.raises(RuntimeException, ins().execute, vm)
@@ -513,7 +520,7 @@ def test_ins_areturn():
     value[2] = values.ValueFloat(4.0)
     vm.stack_push(value)
     ins().execute(vm)
-    assert vm.pc == 0
+    assert vm.pc == VM_PC_START
     assert vm.finished is True
     assert vm.return_value == value
     vm.stack_push(values.ValueInt(99))

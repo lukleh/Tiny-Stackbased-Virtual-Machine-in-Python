@@ -1,12 +1,12 @@
 # -*- coding: utf-8  -*-
-from types import MethodType
 
-from vm.exceptions import ValueException
+from .exceptions import ValueException
 
 
 class Value():
     vtype = None
     ex_message = 'base value'
+    doc_name = 'any value'
 
     def __init__(self, value=None):
         if value is None or self.validatevalue(value):
@@ -31,7 +31,8 @@ class Value():
 
     @classmethod
     def is_type(cls, o):
-        return cls is o.__class__
+        # return cls is o.__class__
+        return issubclass(o.__class__, cls)
 
     def copy(self):
         return self.__class__(self.value)
@@ -46,11 +47,13 @@ class Value():
 class ValueInt(Value):
     vtype = int
     ex_message = 'value not an int'
+    doc_name = 'integer'
 
 
 class ValueFloat(Value):
     vtype = float
     ex_message = 'value not an float'
+    doc_name = 'float'
 
 
 class ValueReference(Value):
@@ -58,25 +61,24 @@ class ValueReference(Value):
 
 
 class ArrayObjectRef(ValueReference):
-    _array = None
+    doc_name = 'generic array'
     _size = 0
 
     def __init__(self, value=None):
         super().__init__(value)
         if value is not None:
-            self._array = self.value
             self._size = len(self.value)
 
     def allocate(self, asize=None):
         if asize < 1:
             raise ValueException('arrayobject must have size more than 0')
-        if self._array is not None:
+        if self.value is not None:
             raise ValueException('arrayobject already initialized')
-        self._array = [None] * asize
+        self.value = [None] * asize
         self._size = asize
 
     def __getitem__(self, i):
-        v = self._array[i]
+        v = self.value[i]
         if v is not None:
             return v
         else:
@@ -85,18 +87,14 @@ class ArrayObjectRef(ValueReference):
     def __setitem__(self, k, v):
         if not isinstance(v, self.atype):
             raise ValueException('%s not type of %s' % (v, self.atype))
-        self._array[k] = v
-
-    @classmethod
-    def is_type(cls, o):
-        return issubclass(o.__class__, cls)
+        self.value[k] = v
 
     def contains_type(self, t):
         return self.atype is t
 
     @property
     def is_none(self):
-        return self._array is None
+        return self.value is None
 
     @property
     def length(self):
@@ -113,10 +111,12 @@ class ArrayObjectRef(ValueReference):
 
 class ValueIntArrayRef(ArrayObjectRef):
     atype = ValueInt
+    doc_name = 'array of components integer'
 
 
 class ValueFloatArrayRef(ArrayObjectRef):
     atype = ValueFloat
+    doc_name = 'array of components float'
 
 
 types = {

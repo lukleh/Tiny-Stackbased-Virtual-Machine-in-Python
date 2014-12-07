@@ -1,9 +1,9 @@
 # -*- coding: utf-8  -*-
 
 import fixtures
-import vm.instructions as ins
-from vm import parser as parser
-from vm.values import ValueFloat, ValueInt
+import TSBVMIP.instructions as ins
+from TSBVMIP import yparser as parser
+from TSBVMIP.values import ValueFloat, ValueInt
 
 
 def test_code():

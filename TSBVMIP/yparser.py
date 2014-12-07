@@ -1,9 +1,9 @@
 # -*- coding: utf-8  -*-
 import yaml
 
-from vm import instructions
-from vm import values
-from vm.exceptions import ParserException
+from . import instructions
+from . import values
+from .exceptions import ParserException
 
 
 class Code():

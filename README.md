@@ -7,7 +7,7 @@ Single file code for execution, single return value.
 * YAML input code format
 * 45 instructions
 * Integer and Float values, array of integers and floats
-* instructions described in vm/instructions.py docstrings
+* instructions described in [instructions.md](doc/instructions.md)
 * roughly inspired by the JVM
 * requires Python3
 

@@ -2,8 +2,8 @@
 
 import pytest
 
-from vm.exceptions import ValueException
-from vm.values import ValueFloat, ValueInt, ArrayObjectRef, ValueIntArrayRef
+from TSBVMIP.exceptions import ValueException
+from TSBVMIP.values import ValueFloat, ValueInt, ValueIntArrayRef
 
 
 def test_eq():
@@ -13,18 +13,19 @@ def test_eq():
     assert ValueFloat(1/3) == ValueFloat(1/3)
     assert ValueInt(3) != ValueInt(6)
     assert ValueFloat(4.5) != ValueFloat(7.0)
-    ar = ValueIntArrayRef([ValueInt(2), ValueInt(5)])
-    ar2 = ValueIntArrayRef([ValueInt(2), ValueInt(5)])
-    assert ar == ar2
 
 
 def test_array_object():
-    ar = ValueIntArrayRef()
-    ar.allocate(10)
-    ar[0] = ValueInt(5)
-    assert ar[0] == ValueInt(5)
-    assert ar[1] == ValueInt()
-    pytest.raises(ValueException, ar.__setitem__, 4, 6)
+    arr = ValueIntArrayRef()
+    assert arr.is_none
+    assert arr.length == 0
+    pytest.raises(Exception, arr.allocate, 0)
+    arr.allocate(10)
+    arr[0] = ValueInt(5)
+    assert arr[0] == ValueInt(5)
+    assert arr[1] == ValueInt()
+    pytest.raises(ValueException, arr.__setitem__, 4, 6)
+    pytest.raises(ValueException, arr.__setitem__, 4, ValueFloat(8.0))
 
 
 def test_value_int():

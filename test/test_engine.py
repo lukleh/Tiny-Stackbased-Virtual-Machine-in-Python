@@ -3,9 +3,9 @@ import pytest
 
 import fixtures
 
-from vm import values
-from vm import engine
-from vm.exceptions import RuntimeException
+from TSBVMIP import values
+from TSBVMIP import engine
+from TSBVMIP.exceptions import RuntimeException
 
 
 def test_empty_vm():
