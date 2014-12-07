@@ -58,7 +58,7 @@ for name, iclass in ins.keywords.items():
     md.append('## %s' % name)
 
     md.append(dstr.strip())
-    md.append('###argument')
+    md.append('####argument')
     if issubclass(iclass, ins.InsArgILabel):
         md.append('integer or label')
     elif issubclass(iclass, ins.InsArgInteger):
@@ -68,7 +68,7 @@ for name, iclass in ins.keywords.items():
     else:
         md.append('no arguments')
 
-    md.append('###operation stack')
+    md.append('####operation stack')
     md.extend(prep_stack(iclass.stack_input_arguments, iclass.stack_output_arguments, iclass.stack_order))
     print('\n'.join(md))
     print()
