@@ -54,6 +54,10 @@ class Instruction():
         self.code(vm)
 
 
+class InsReturn(Instruction):
+    pass
+
+
 class InsNoArgument(Instruction):
     stack_input_arguments = []
     stack_output_arguments = []
@@ -104,7 +108,11 @@ class InsArgILabel(InsArgInteger):
     pass
 
 
-class InsCompareBase(InsArgILabel):
+class InsJump(InsArgILabel):
+    pass
+
+
+class InsCompareBase(InsJump):
     opr = lambda a, b, c: None
 
     def code(self, vm):
@@ -246,7 +254,7 @@ class InsFStore(InsArgILabel):
         vm.pc += 1
 
 
-class InsGoto(InsArgILabel):
+class InsGoto(InsJump):
     """
     move pointer to position
     """
@@ -257,7 +265,7 @@ class InsGoto(InsArgILabel):
         vm.pc = self.argument.value
 
 
-class InsIReturn(Instruction):
+class InsIReturn(InsReturn):
     """
     pops value from stack and set it as return value of the code and finishes execution
     """
@@ -269,7 +277,7 @@ class InsIReturn(Instruction):
         vm.return_value = vm.stack_pop()
 
 
-class InsFReturn(Instruction):
+class InsFReturn(InsReturn):
     """
     pops value from stack and set it as return value of the code and finishes execution
     """
@@ -419,7 +427,7 @@ class InsFIfCmpLt(InsFCompareBase):
     opr = operator.lt
 
 
-class InsIfNonNull(InsArgILabel):
+class InsIfNonNull(InsJump):
     """
     if value is not null, move pointer to <var>
     """
@@ -434,7 +442,7 @@ class InsIfNonNull(InsArgILabel):
             vm.pc += 1
 
 
-class InsIfNull(InsArgILabel):
+class InsIfNull(InsJump):
     """
     if value is null, move pointer to <var>
     """
@@ -629,7 +637,7 @@ class InsAFStore(InsArrayStore):
     stack_output_arguments = []
 
 
-class InsAReturn(Instruction):
+class InsAReturn(InsReturn):
     """
     pops value from stack and set it as return value of the code and finishes execution
     """

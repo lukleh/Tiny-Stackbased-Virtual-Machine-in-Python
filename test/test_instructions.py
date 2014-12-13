@@ -35,11 +35,11 @@ def test_args():
             pytest.raises(InstructionException, ins)
             if issubclass(ins, instructions.InsArgInteger):
                 assert ins(values.ValueInt(1)) is not None
-                pytest.raises(InstructionException, ins, 'int')
+                pytest.raises(InstructionException, ins, 'bad')
                 pytest.raises(InstructionException, ins, values.ValueInt())
             elif issubclass(ins, instructions.InsArgFloat):
                 assert ins(values.ValueFloat(1.0)) is not None
-                pytest.raises(InstructionException, ins, 'float')
+                pytest.raises(InstructionException, ins, 'bad')
                 pytest.raises(InstructionException, ins, values.ValueFloat())
         else:
             assert ins() is not None
