@@ -20,7 +20,7 @@ def test_flow_instructions():
 
 
 def test_basic_block():
-    c = Code(func={'name': 'n', 'args': []})
+    c = Code()
     c.instructions = [
         ins.InsIPush(vals.ValueInt(1)),
         ins.InsIReturn()

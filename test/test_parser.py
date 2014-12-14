@@ -7,15 +7,15 @@ from TSBVMIP.values import ValueFloat, ValueInt
 
 
 def test_code():
-    c = parser.Code(func={'name': 'n',
-                          'args': [
-                              {'type': 'int'},
-                              {'type': 'float'}
-                          ]},
-                    lvars=[
-                        {'type': 'int'},
-                        {'type': 'float'}
-                    ])
+    c = parser.process_yaml(dict(func={'name': 'n',
+                                       'args': [
+                                           {'type': 'int'},
+                                           {'type': 'float'}
+                                       ]},
+                                 lvars=[
+                                     {'type': 'int'},
+                                     {'type': 'float'}
+                                 ]))
     assert c.var_count == 4
 
 

@@ -23,6 +23,7 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 3',
     ],
+    tests_require=['pytest'],
     keywords='virtual machine stack',
     packages=['TSBVMIP'],
 )

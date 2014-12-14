@@ -12,17 +12,17 @@ VM_PC_START = 10
 
 
 def make_vm():
-    c = parser.Code(func={'name': 'n',
-                          'args': [
-                              {'type': 'int'},
-                              {'type': 'float'}
-                          ]},
-                    lvars=[
-                        {'type': 'int'},
-                        {'type': 'float'},
-                        {'type': 'intarray'},
-                        {'type': 'floatarray'}
-                    ])
+    c = parser.process_yaml(dict(func={'name': 'n',
+                                       'args': [
+                                           {'type': 'int'},
+                                           {'type': 'float'}
+                                       ]},
+                                 lvars=[
+                                     {'type': 'int'},
+                                     {'type': 'float'},
+                                     {'type': 'intarray'},
+                                     {'type': 'floatarray'}
+                                 ]))
     vme = engine.VM(c)
     vme.assign_arguments(vme.convert_args([1, 1.0]))
     vme.pc = VM_PC_START  # shift pointer so we can check absolute jumps

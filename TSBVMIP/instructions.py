@@ -586,8 +586,10 @@ class InsAStore(InsArgILabel):
 
     def code(self, vm):
         arr = vm.stack_pop()
-        if vm.local_vars[self.argument.value].__class__ != arr.__class__:
-            raise RuntimeException('arrays differ in inner type, cannot assign')
+        lvar = vm.local_vars[self.argument.value]
+        if not arr.is_type(lvar):
+            raise RuntimeException('arrays differ in inner type, cannot assign %s to %s' %
+                                   (arr.__class__, lvar.__class__))
         vm.local_vars[self.argument.value] = arr
         vm.pc += 1
 
