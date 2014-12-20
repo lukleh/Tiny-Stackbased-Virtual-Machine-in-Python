@@ -24,6 +24,7 @@ setup(
         'Programming Language :: Python :: 3',
     ],
     tests_require=['pytest'],
+    install_requires=['pyyaml'],
     keywords='virtual machine stack',
     packages=['TSBVMIP'],
 )
