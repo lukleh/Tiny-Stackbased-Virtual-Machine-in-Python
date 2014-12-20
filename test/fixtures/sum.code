@@ -1,0 +1,44 @@
+
+#
+# return sum of numbers in range, upper bound included
+# input: two integers
+# example:
+# a = 1
+# b = 5
+# result = 1 + 2 + 3 + 4 + 5
+# result = 15
+
+func:
+    name: range sum
+    args:
+        - label: a
+          type: int
+        - label: b
+          type: int
+lvars:
+    - label: sum
+      type: int
+    - label: increment
+      type: int
+
+ins:
+    - iload: a
+    - istore: sum
+    - iload: a
+    - istore: increment
+    - ipush: 1
+      label: L1
+    - iload: increment
+    - iadd
+    - dup
+    - iload: b
+    - if_icmpgt: L2
+    - dup
+    - istore: increment
+    - iload: sum
+    - iadd
+    - istore: sum
+    - goto: L1
+    - iload: sum
+      label: L2
+    - ireturn

@@ -19,5 +19,4 @@ code = yparser.parse_file(file_path)
 
 anz = analyzer.Analyzer()
 anz.analyze_control(code)
-anz.control_graph.scan_basic_blocks()
-print(anz.control_graph.basic_blocks)
+print(anz.basic_blocks)

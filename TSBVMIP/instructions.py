@@ -112,7 +112,11 @@ class InsJump(InsArgILabel):
     pass
 
 
-class InsCompareBase(InsJump):
+class InsBranch(InsArgILabel):
+    pass
+
+
+class InsCompareBase(InsBranch):
     opr = lambda a, b, c: None
 
     def code(self, vm):
@@ -134,7 +138,7 @@ class InsFCompareBase(InsCompareBase):
     stack_output_arguments = []
 
 
-class InsMathBase(Instruction):
+class InsMathBase(InsNoArgument):
 
     def code(self, vm):
         val2 = vm.stack_pop()
@@ -154,7 +158,7 @@ class InsFMathBase(InsMathBase):
     stack_output_arguments = [ValueFloat]
 
 
-class InsArrayLoad(Instruction):
+class InsArrayLoad(InsNoArgument):
     arr_type = None
 
     def code(self, vm):
@@ -165,7 +169,7 @@ class InsArrayLoad(Instruction):
         vm.pc += 1
 
 
-class InsArrayStore(Instruction):
+class InsArrayStore(InsNoArgument):
 
     def code(self, vm):
         value = vm.stack_pop()
@@ -289,7 +293,7 @@ class InsFReturn(InsReturn):
         vm.return_value = vm.stack_pop()
 
 
-class InsNop(Instruction):
+class InsNop(InsNoArgument):
     """
     no effect, no operation
     """
@@ -300,7 +304,7 @@ class InsNop(Instruction):
         vm.pc += 1
 
 
-class InsPop(Instruction):
+class InsPop(InsNoArgument):
     """
     pops value from stack and discards it
     """
@@ -312,7 +316,7 @@ class InsPop(Instruction):
         vm.pc += 1
 
 
-class InsDup(Instruction):
+class InsDup(InsNoArgument):
     """
     duplicates value on the stack
     """
@@ -327,7 +331,7 @@ class InsDup(Instruction):
         vm.pc += 1
 
 
-class InsSwap(Instruction):
+class InsSwap(InsNoArgument):
     """
     swaps values on the stack
     """
@@ -427,7 +431,7 @@ class InsFIfCmpLt(InsFCompareBase):
     opr = operator.lt
 
 
-class InsIfNonNull(InsJump):
+class InsIfNonNull(InsBranch):
     """
     if value is not null, move pointer to <var>
     """
@@ -442,7 +446,7 @@ class InsIfNonNull(InsJump):
             vm.pc += 1
 
 
-class InsIfNull(InsJump):
+class InsIfNull(InsBranch):
     """
     if value is null, move pointer to <var>
     """
@@ -513,7 +517,7 @@ class InsFDiv(InsFMathBase):
     opr = operator.truediv
 
 
-class InsFloat2Int(Instruction):
+class InsFloat2Int(InsNoArgument):
     """
     converts float to int
     """
@@ -527,7 +531,7 @@ class InsFloat2Int(Instruction):
         vm.pc += 1
 
 
-class InsInt2Float(Instruction):
+class InsInt2Float(InsNoArgument):
     """
     converts int to float
     """
@@ -610,7 +614,7 @@ class InsAFLoad(InsArrayLoad):
     stack_output_arguments = [ValueFloat]
 
 
-class InsArrayLength(Instruction):
+class InsArrayLength(InsNoArgument):
     """
     returns length of an array
     """
