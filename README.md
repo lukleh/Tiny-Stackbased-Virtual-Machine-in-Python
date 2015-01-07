@@ -5,7 +5,7 @@ Single file code for execution, single return value.
 
 ##Features
 * YAML input code format
-* 45 instructions
+* 46 instructions
 * Integer and Float values, array of integers and floats
 * instructions described in [instructions.md](doc/instructions.md)
 * roughly inspired by the JVM
@@ -33,4 +33,10 @@ and final command
 
 ```
 python run.py data/sum.yaml --arg0 1 --arg1 5
+```
+
+array argument
+
+```
+python run.py data/bubblesort.yaml --arg0 5 10 4 3 7 10 10 0
 ```

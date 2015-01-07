@@ -2,9 +2,12 @@ func:
     name: f
     args:
         - type: int
+          label: a
+    type: int
 lvars:
     - label: x
       type: int
     - type: int
+      label: b
     - label: y
       type: float

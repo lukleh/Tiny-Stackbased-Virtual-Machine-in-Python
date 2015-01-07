@@ -20,63 +20,64 @@ lvars:
       type: int
     - label: length
       type: int
-    - label: tmp
-      type: int
 
 ins:
     - aload: array
     - arraylength
-    - istore: length  # length = 0
+    - istore: length
     - label: newpass
     - ipush: 0
     - dup
-    - istore: swapped  # swapped = false
-    - istore: index  # index = 0
+    - istore: swapped
+    - istore: index
     - label: startloop
     - iload: index
     - ipush: 1
     - iadd
     - dup
-    - istore: index  # index += 1
     - iload: length
-    - if_icmpeq: endloop  # if index == length: loop is over
+    - if_icmpeq: endloop
+    - dup
+    - istore: index
     - aload: array
-    - iload: index
+    - swap
     - iaload
     - aload: array
     - iload: index
     - ipush: 1
     - isub
     - iaload
-    - if_icmpge: startloop  # if array[i] >= array[i - 1], move to next element
+    - if_icmpge: startloop
     - aload: array
     - iload: index
     - ipush: 1
     - isub
     - iaload
-    - istore: tmp  # tmp = array[i - 1]
 
-    - aload: array
-    - iload: index
-    - ipush: 1
-    - isub
     - aload: array
     - iload: index
     - iaload
-    - iastore  # index[i - 1] = index[i]
 
     - aload: array
+    - swap
     - iload: index
-    - iload: tmp
-    - iastore  # index[i] = tmp
-
     - ipush: 1
-    - istore: swapped  # swapped = true
-    - goto: startloop  # move to next element
+    - isub
+    - swap
+    - iastore # bug
+
+    - aload: array
+    - swap
+    - iload: index
+    - swap
+    - iastore
+    - ipush: 1
+    - istore: swapped
+    - goto: startloop
 
     - label: endloop
     - iload: swapped
     - ipush: 0
-    - if_icmpne: newpass  # if swapped == true, start sorting array again
+    - if_icmpne: newpass
     - aload: array
-    - areturn  # las pass did not swap any elements, array is sorted, return it
+    - areturn

@@ -15,6 +15,7 @@ func:
           type: int
         - label: b
           type: int
+    type: int
 lvars:
     - label: sum
       type: int
@@ -26,8 +27,8 @@ ins:
     - istore: sum
     - iload: a
     - istore: increment
+    - label: L1
     - ipush: 1
-      label: L1
     - iload: increment
     - iadd
     - dup
@@ -39,6 +40,6 @@ ins:
     - iadd
     - istore: sum
     - goto: L1
+    - label: L2
     - iload: sum
-      label: L2
     - ireturn

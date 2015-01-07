@@ -1,15 +1,27 @@
 # -*- coding: utf-8  -*-
 
 
-class ParserException(Exception):
+class VirtualMachineException(Exception):
     pass
 
 
-class ValueException(Exception):
+class ParserException(VirtualMachineException):
     pass
 
 
-class RuntimeException(Exception):
+class ValueException(VirtualMachineException):
+    pass
+
+
+class VerifyException(VirtualMachineException):
+    pass
+
+
+class ExpectedException(VerifyException):
+    pass
+
+
+class RuntimeException(VirtualMachineException):
     pass
 
 

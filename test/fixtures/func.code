@@ -1,6 +1,8 @@
 func:
     name: multiple word name  #standard yaml comment
     args:
-        - label: a # optional name of the argument for reference in the code
+        - label: a # required name of the argument for reference in the code
           type: int # type of the argument
         - type: float
+          label: L1
+    type: int  # retrun type

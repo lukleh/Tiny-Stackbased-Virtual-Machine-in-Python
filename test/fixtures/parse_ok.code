@@ -3,6 +3,8 @@ func:
     args:
         - label: a
           type: int
+    type: int
+
 lvars:
     - label: b
       type: int
@@ -12,4 +14,5 @@ ins:
     - istore: b
     - fpush: 1.1
     - ipush: 1
+    - label: done
     - ireturn

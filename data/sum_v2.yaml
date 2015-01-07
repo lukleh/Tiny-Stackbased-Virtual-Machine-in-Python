@@ -19,23 +19,23 @@ func:
 lvars:
     - label: sum
       type: int
-    - label: increment
+    - label: partial
       type: int
 
 ins:
     - iload: a
     - istore: sum
     - iload: a
-    - istore: increment
+    - istore: partial
     - label: L1
     - ipush: 1
-    - iload: increment
+    - iload: partial
     - iadd
     - dup
+    - istore: partial
     - iload: b
     - if_icmpgt: L2
-    - dup
-    - istore: increment
+    - iload: partial
     - iload: sum
     - iadd
     - istore: sum

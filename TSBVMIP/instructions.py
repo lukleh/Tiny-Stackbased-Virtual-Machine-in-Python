@@ -1,44 +1,14 @@
 # -*- coding: utf-8  -*-
 import operator
-import functools
 from collections import OrderedDict
 
-from .values import Value, ValueInt, ValueFloat, ValueIntArrayRef, ValueFloatArrayRef, ArrayObjectRef
-from .exceptions import InstructionException, RuntimeException
-
-
-def check_inout_values(f):
-    """
-    decorator
-    for checking what values are taken from stack and consumed by instruction if any
-    then check values pushed to the stack by instruction if any
-    """
-    @functools.wraps(f)
-    def wrfn(self, vm):
-        for i, a in enumerate(reversed(self.stack_input_arguments)):
-            idx = -(i + 1)
-            v = vm.stack_index(idx)
-            # if self.no_nulls and v.is_none:
-            #     raise RuntimeException('instruction %s cannot operate on empty value' % self.__class__)
-            if not a.is_type(v):
-                raise RuntimeException('stack value at %d expected %s got %s in %s' % (idx, a, v, self.__class__))
-        pre_len = len(vm.stack)
-        f(self, vm)
-        if len(vm.stack) != (pre_len - len(self.stack_input_arguments) + len(self.stack_output_arguments)):
-            raise RuntimeException('stack pre and post lenghts do not match instruction manipulation')
-        for i, a in enumerate(reversed(self.stack_output_arguments)):
-            idx = -(i + 1)
-            v = vm.stack_index(idx)
-            # if self.no_nulls and v.is_none:
-            #     raise RuntimeException('instruction %s cannot output empty value' % self.__class__)
-            if not a.is_type(v):
-                raise RuntimeException('stack value at %d should output %s pushed %s in %s' % (idx, a, v, self.__class__))
-    return wrfn
+from . import opcodes
+from .value_containers import ValueInt, ValueFloat, ValueIntArrayRef, ValueFloatArrayRef
+from .exceptions import InstructionException, ValueException
 
 
 class Instruction():
-
-    stack_order = []
+    opcode = None
 
     def __str__(self):
         return "%s" % self.__class__.__name__
@@ -47,20 +17,15 @@ class Instruction():
         return self.__str__()
 
     def __eq__(self, other):
-        return self.__class__ == other.__class__
-
-    @check_inout_values
-    def execute(self, vm):
-        self.code(vm)
-
-
-class InsReturn(Instruction):
-    pass
+        return self.opcode == other.opcode
 
 
 class InsNoArgument(Instruction):
-    stack_input_arguments = []
-    stack_output_arguments = []
+    pass
+
+
+class InsReturn(InsNoArgument):
+    pass
 
 
 class InsArgument(Instruction):
@@ -69,39 +34,24 @@ class InsArgument(Instruction):
         return "%s <%s>" % (self.__class__.__name__, self.argument)
 
     def __init__(self, arg=None):
-        if arg is None:
-            raise InstructionException('instruction argument is None')
-        if type(arg) == type:
-            raise InstructionException('argument cannot be class, must be an instance')
-        if not isinstance(arg, Value):
-            raise InstructionException('instruction argument not type Value: %s' % arg.__class__)
-        if arg.is_none:
-            raise InstructionException('instruction cannot have argument Value with value None')
         self.argument = arg
+        if arg is None:
+            raise InstructionException('instruction %s needs argument' % self)
 
     def __eq__(self, other):
-        c = super().__eq__(other)
-        v = self.argument == other.argument
-        return c and v
+        return super().__eq__(other) and self.argument == other.argument
 
 
 class InsArgNumber(InsArgument):
-
-    arg_class = None
-
-    def __init__(self, arg=None):
-        super().__init__(arg)
-        if not isinstance(self.argument, self.arg_class):
-            raise InstructionException('ins with {} argument, got type: {}'.format(self.arg_class,
-                                                                                   self.argument.value.__class__))
+    pass
 
 
 class InsArgInteger(InsArgNumber):
-    arg_class = ValueInt
+    pass
 
 
 class InsArgFloat(InsArgNumber):
-    arg_class = ValueFloat
+    pass
 
 
 class InsArgILabel(InsArgInteger):
@@ -119,7 +69,7 @@ class InsBranch(InsArgILabel):
 class InsCompareBase(InsBranch):
     opr = lambda a, b, c: None
 
-    def code(self, vm):
+    def execute(self, vm):
         val2 = vm.stack_pop()
         val1 = vm.stack_pop()
         if self.opr(val1.value, val2.value):
@@ -129,49 +79,44 @@ class InsCompareBase(InsBranch):
 
 
 class InsICompareBase(InsCompareBase):
-    stack_input_arguments = [ValueInt, ValueInt]
-    stack_output_arguments = []
+    pass
 
 
 class InsFCompareBase(InsCompareBase):
-    stack_input_arguments = [ValueFloat, ValueFloat]
-    stack_output_arguments = []
+    pass
 
 
 class InsMathBase(InsNoArgument):
+    opr = lambda a, b, cs: None
 
-    def code(self, vm):
+    def execute(self, vm):
         val2 = vm.stack_pop()
         val1 = vm.stack_pop()
-        pval = self.opr(val1.value, val2.value)
-        vm.stack_push(self.stack_output_arguments[0](pval))
+        pval = self.opr(val1, val2)
+        vm.stack_push(pval)
         vm.pc += 1
 
 
 class InsIMathBase(InsMathBase):
-    stack_input_arguments = [ValueInt, ValueInt]
-    stack_output_arguments = [ValueInt]
+    pass
 
 
 class InsFMathBase(InsMathBase):
-    stack_input_arguments = [ValueFloat, ValueFloat]
-    stack_output_arguments = [ValueFloat]
+    pass
 
 
 class InsArrayLoad(InsNoArgument):
-    arr_type = None
 
-    def code(self, vm):
+    def execute(self, vm):
         index = vm.stack_pop().value
         arr = vm.stack_pop()
-        arr.contains_type(self.arr_type)
         vm.stack_push(arr[index])
         vm.pc += 1
 
 
 class InsArrayStore(InsNoArgument):
 
-    def code(self, vm):
+    def execute(self, vm):
         value = vm.stack_pop()
         index = vm.stack_pop().value
         arr = vm.stack_pop()
@@ -187,144 +132,143 @@ class InsArrayStore(InsNoArgument):
 
 
 class InsIPush(InsArgInteger):
+
     """
     push integer value onto the stack
     """
-    stack_input_arguments = []
-    stack_output_arguments = [ValueInt]
+    opcode = opcodes.IPUSH
 
-    def code(self, vm):
+    def execute(self, vm):
         vm.stack_push(self.argument)
         vm.pc += 1
 
 
 class InsFPush(InsArgFloat):
+
     """
     push float value onto the stack
     """
-    stack_input_arguments = []
-    stack_output_arguments = [ValueFloat]
+    opcode = opcodes.FPUSH
 
-    def code(self, vm):
+    def execute(self, vm):
         vm.stack_push(self.argument)
         vm.pc += 1
 
 
 class InsILoad(InsArgILabel):
+
     """
     load integer value from local variable at index
     """
-    stack_input_arguments = []
-    stack_output_arguments = [ValueInt]
+    opcode = opcodes.ILOAD
 
-    def code(self, vm):
-        vm.stack_push(vm.local_vars[self.argument.value])
+    def execute(self, vm):
+        vm.stack_push(vm.variables[self.argument.value])
         vm.pc += 1
 
 
 class InsFLoad(InsArgILabel):
+
     """
     load float value from local variable at index
     """
-    stack_input_arguments = []
-    stack_output_arguments = [ValueFloat]
+    opcode = opcodes.FLOAD
 
-    def code(self, vm):
-        vm.stack_push(vm.local_vars[self.argument.value])
+    def execute(self, vm):
+        vm.stack_push(vm.variables[self.argument.value])
         vm.pc += 1
 
 
 class InsIStore(InsArgILabel):
+
     """
     store integer value to local variable at index
     """
-    stack_input_arguments = [ValueInt]
-    stack_output_arguments = []
+    opcode = opcodes.ISTORE
 
-    def code(self, vm):
-        vm.local_vars[self.argument.value] = vm.stack_pop()
+    def execute(self, vm):
+        vm.variables[self.argument.value] = vm.stack_pop()
         vm.pc += 1
 
 
 class InsFStore(InsArgILabel):
+
     """
     store float value to local variable at index
     """
-    stack_input_arguments = [ValueFloat]
-    stack_output_arguments = []
+    opcode = opcodes.FSTORE
 
-    def code(self, vm):
-        vm.local_vars[self.argument.value] = vm.stack_pop()
+    def execute(self, vm):
+        vm.variables[self.argument.value] = vm.stack_pop()
         vm.pc += 1
 
 
 class InsGoto(InsJump):
+
     """
     move pointer to position
     """
-    stack_input_arguments = []
-    stack_output_arguments = []
+    opcode = opcodes.GOTO
 
-    def code(self, vm):
+    def execute(self, vm):
         vm.pc = self.argument.value
 
 
 class InsIReturn(InsReturn):
+
     """
     pops value from stack and set it as return value of the code and finishes execution
     """
-    stack_input_arguments = [ValueInt]
-    stack_output_arguments = []
+    opcode = opcodes.IRETURN
 
-    def code(self, vm):
+    def execute(self, vm):
         vm.finished = True
         vm.return_value = vm.stack_pop()
 
 
 class InsFReturn(InsReturn):
+
     """
     pops value from stack and set it as return value of the code and finishes execution
     """
-    stack_input_arguments = [ValueFloat]
-    stack_output_arguments = []
+    opcode = opcodes.FRETURN
 
-    def code(self, vm):
+    def execute(self, vm):
         vm.finished = True
         vm.return_value = vm.stack_pop()
 
 
 class InsNop(InsNoArgument):
+
     """
     no effect, no operation
     """
-    stack_input_arguments = []
-    stack_output_arguments = []
+    opcode = opcodes.NOP
 
-    def code(self, vm):
+    def execute(self, vm):
         vm.pc += 1
 
 
 class InsPop(InsNoArgument):
+
     """
     pops value from stack and discards it
     """
-    stack_input_arguments = [Value]
-    stack_output_arguments = []
+    opcode = opcodes.POP
 
-    def code(self, vm):
+    def execute(self, vm):
         vm.stack_pop()
         vm.pc += 1
 
 
 class InsDup(InsNoArgument):
+
     """
     duplicates value on the stack
     """
-    stack_input_arguments = [Value]
-    stack_output_arguments = [Value, Value]
-    stack_order = [0, 0, 0]
+    opcode = opcodes.DUP
 
-    def code(self, vm):
+    def execute(self, vm):
         val = vm.stack_pop()
         vm.stack_push(val)
         vm.stack_push(val.copy())
@@ -332,14 +276,13 @@ class InsDup(InsNoArgument):
 
 
 class InsSwap(InsNoArgument):
+
     """
     swaps values on the stack
     """
-    stack_input_arguments = [Value, Value]
-    stack_output_arguments = [Value, Value]
-    stack_order = [0, 1, 1, 0]
+    opcode = opcodes.SWAP
 
-    def code(self, vm):
+    def execute(self, vm):
         val1 = vm.stack_pop()
         val2 = vm.stack_pop()
         vm.stack_push(val1)
@@ -347,98 +290,122 @@ class InsSwap(InsNoArgument):
         vm.pc += 1
 
 
-class InsIIfCmpEq(InsICompareBase):
+class InsIfICmpEq(InsICompareBase):
+
     """
     if two values are equal, move pointer to <var>
     """
+    opcode = opcodes.IF_ICMPEQ
     opr = operator.eq
 
 
-class InsIIfCmpNe(InsICompareBase):
+class InsIfICmpNe(InsICompareBase):
+
     """
     if two values are not equal, move pointer to <var>
     """
+    opcode = opcodes.IF_ICMPNE
     opr = operator.ne
 
 
-class InsIIfCmpGe(InsICompareBase):
+class InsIfICmpGe(InsICompareBase):
+
     """
     if value1 is greater or equal to value2, move pointer to <var>
     """
+    opcode = opcodes.IF_ICMPGE
     opr = operator.ge
 
 
-class InsIIfCmpGt(InsICompareBase):
+class InsIfICmpGt(InsICompareBase):
+
     """
     if value1 is greater than value2, move pointer to <var>
     """
+    opcode = opcodes.IF_ICMPGT
     opr = operator.gt
 
 
-class InsIIfCmpLe(InsICompareBase):
+class InsIfICmpLe(InsICompareBase):
+
     """
     if value1 is lower or equal than value2, move pointer to <var>
     """
+    opcode = opcodes.IF_ICMPLE
     opr = operator.le
 
 
-class InsIIfCmpLt(InsICompareBase):
+class InsIfICmpLt(InsICompareBase):
+
     """
     if value1 is lower than value2, move pointer to <var>
     """
+    opcode = opcodes.IF_ICMPLT
     opr = operator.lt
 
 
-class InsFIfCmpEq(InsFCompareBase):
+class InsIfFCmpEq(InsFCompareBase):
+
     """
     if two values are equal, move pointer to <var>
     """
+    opcode = opcodes.IF_FCMPEQ
     opr = operator.eq
 
 
-class InsFIfCmpNe(InsFCompareBase):
+class InsIfFCmpNe(InsFCompareBase):
+
     """
     if two values are not equal, move pointer to <var>
     """
+    opcode = opcodes.IF_FCMPNE
     opr = operator.ne
 
 
-class InsFIfCmpGe(InsFCompareBase):
+class InsIfFCmpGe(InsFCompareBase):
+
     """
     if value1 is greater or equal to value2, move pointer to <var>
     """
+    opcode = opcodes.IF_FCMPGE
     opr = operator.ge
 
 
-class InsFIfCmpGt(InsFCompareBase):
+class InsIfFCmpGt(InsFCompareBase):
+
     """
     if value1 is greater than value2, move pointer to <var>
     """
+    opcode = opcodes.IF_FCMPGT
     opr = operator.gt
 
 
-class InsFIfCmpLe(InsFCompareBase):
+class InsIfFCmpLe(InsFCompareBase):
+
     """
     if value1 is lower or equal than value2, move pointer to <var>
     """
+    opcode = opcodes.IF_FCMPLE
     opr = operator.le
 
 
-class InsFIfCmpLt(InsFCompareBase):
+class InsIfFCmpLt(InsFCompareBase):
+
     """
     if value1 is lower than value2, move pointer to <var>
     """
+    opcode = opcodes.IF_FCMPLT
     opr = operator.lt
 
 
 class InsIfNonNull(InsBranch):
+
     """
     if value is not null, move pointer to <var>
     """
-    stack_input_arguments = [Value]
-    stack_output_arguments = []
+    opcode = opcodes.IFNONNULL
 
-    def code(self, vm):
+    def execute(self, vm):
         val = vm.stack_pop()
         if not val.is_none:
             vm.pc = self.argument.value
@@ -447,13 +414,13 @@ class InsIfNonNull(InsBranch):
 
 
 class InsIfNull(InsBranch):
+
     """
     if value is null, move pointer to <var>
     """
-    stack_input_arguments = [Value]
-    stack_output_arguments = []
+    opcode = opcodes.IFNULL
 
-    def code(self, vm):
+    def execute(self, vm):
         val = vm.stack_pop()
         if val.is_none:
             vm.pc = self.argument.value
@@ -462,69 +429,85 @@ class InsIfNull(InsBranch):
 
 
 class InsIAdd(InsIMathBase):
+
     """
     add two integers, push result to stack
     """
+    opcode = opcodes.IADD
     opr = operator.add
 
 
 class InsISub(InsIMathBase):
+
     """
     subsctract two integers, push result to stack
     """
+    opcode = opcodes.ISUB
     opr = operator.sub
 
 
 class InsIMul(InsIMathBase):
+
     """
     multiply two integers, push result to stack
     """
+    opcode = opcodes.IMUL
     opr = operator.mul
 
 
 class InsIDiv(InsIMathBase):
+
     """
     divide two integers, push result to stack
     """
+    opcode = opcodes.IDIV
     opr = operator.floordiv
 
 
 class InsFAdd(InsFMathBase):
+
     """
     add two floats, push result to stack
     """
+    opcode = opcodes.FADD
     opr = operator.add
 
 
 class InsFSub(InsFMathBase):
+
     """
     subsctract two floats, push result to stack
     """
+    opcode = opcodes.FSUB
     opr = operator.sub
 
 
 class InsFMul(InsFMathBase):
+
     """
     multiply two floats, push result to stack
     """
+    opcode = opcodes.FMUL
     opr = operator.mul
 
 
 class InsFDiv(InsFMathBase):
+
     """
     divide two floats, push result to stack
     """
+    opcode = opcodes.FDIV
     opr = operator.truediv
 
 
 class InsFloat2Int(InsNoArgument):
+
     """
     converts float to int
     """
-    stack_input_arguments = [ValueFloat]
-    stack_output_arguments = [ValueInt]
+    opcode = opcodes.F2I
 
-    def code(self, vm):
+    def execute(self, vm):
         val1 = vm.stack_pop()
         pval = int(val1.value)
         vm.stack_push(ValueInt(pval))
@@ -532,13 +515,13 @@ class InsFloat2Int(InsNoArgument):
 
 
 class InsInt2Float(InsNoArgument):
+
     """
     converts int to float
     """
-    stack_input_arguments = [ValueInt]
-    stack_output_arguments = [ValueFloat]
+    opcode = opcodes.I2F
 
-    def code(self, vm):
+    def execute(self, vm):
         val1 = vm.stack_pop()
         pval = float(val1.value)
         vm.stack_push(ValueFloat(pval))
@@ -546,11 +529,11 @@ class InsInt2Float(InsNoArgument):
 
 
 class InsNewArray(InsArgInteger):
+
     """
     makes an array of size value1 with type <var>
     """
-    stack_input_arguments = [ValueInt]
-    stack_output_arguments = [ArrayObjectRef]
+    opcode = opcodes.NEWARRAY
 
     def __init__(self, arg=None):
         super().__init__(arg)
@@ -561,7 +544,7 @@ class InsNewArray(InsArgInteger):
         else:
             raise InstructionException('newarray can accept only type 0 or 1, received %s' % self.argument.value)
 
-    def code(self, vm):
+    def execute(self, vm):
         size = vm.stack_pop().value
         arr = self.array_type()
         arr.allocate(asize=size)
@@ -570,87 +553,82 @@ class InsNewArray(InsArgInteger):
 
 
 class InsALoad(InsArgILabel):
+
     """
     load array reference from local variable <var>
     """
-    stack_input_arguments = []
-    stack_output_arguments = [ArrayObjectRef]
+    opcode = opcodes.ALOAD
 
-    def code(self, vm):
-        vm.stack_push(vm.local_vars[self.argument.value])
+    def execute(self, vm):
+        vm.stack_push(vm.variables[self.argument.value])
         vm.pc += 1
 
 
 class InsAStore(InsArgILabel):
+
     """
     store array reference to local variable <var>
     """
-    stack_input_arguments = [ArrayObjectRef]
-    stack_output_arguments = []
+    opcode = opcodes.ASTORE
 
-    def code(self, vm):
-        arr = vm.stack_pop()
-        lvar = vm.local_vars[self.argument.value]
-        if not arr.is_type(lvar):
-            raise RuntimeException('arrays differ in inner type, cannot assign %s to %s' %
-                                   (arr.__class__, lvar.__class__))
-        vm.local_vars[self.argument.value] = arr
+    def execute(self, vm):
+        vm.variables[self.argument.value] = vm.stack_pop()
         vm.pc += 1
 
 
-class InsAILoad(InsArrayLoad):
+class InsIALoad(InsArrayLoad):
+
     """
     load an int from an array
     """
-    stack_input_arguments = [ValueIntArrayRef, ValueInt]
-    stack_output_arguments = [ValueInt]
+    opcode = opcodes.IALOAD
 
 
-class InsAFLoad(InsArrayLoad):
+class InsFALoad(InsArrayLoad):
+
     """
     load an float from an array
     """
-    stack_input_arguments = [ValueFloatArrayRef, ValueInt]
-    stack_output_arguments = [ValueFloat]
+    opcode = opcodes.FALOAD
 
 
 class InsArrayLength(InsNoArgument):
+
     """
     returns length of an array
     """
-    stack_input_arguments = [ArrayObjectRef]
-    stack_output_arguments = [ValueInt]
+    opcode = opcodes.ARRAYLENGTH
 
-    def code(self, vm):
+    def execute(self, vm):
         arr = vm.stack_pop()
         vm.stack_push(ValueInt(arr.length))
         vm.pc += 1
 
 
-class InsAIStore(InsArrayStore):
+class InsIAStore(InsArrayStore):
+
     """
     store an int to array index
     """
-    stack_input_arguments = [ValueIntArrayRef, ValueInt, ValueInt]
-    stack_output_arguments = []
+    opcode = opcodes.IASTORE
 
 
-class InsAFStore(InsArrayStore):
+class InsFAStore(InsArrayStore):
+
     """
     store an float to array index
     """
-    stack_input_arguments = [ValueFloatArrayRef, ValueInt, ValueFloat]
-    stack_output_arguments = []
+    opcode = opcodes.FASTORE
 
 
 class InsAReturn(InsReturn):
+
     """
     pops value from stack and set it as return value of the code and finishes execution
     """
-    stack_input_arguments = [ArrayObjectRef]
-    stack_output_arguments = []
+    opcode = opcodes.ARETURN
 
-    def code(self, vm):
+    def execute(self, vm):
         vm.finished = True
         vm.return_value = vm.stack_pop()
 
@@ -671,19 +649,19 @@ keywords = OrderedDict([
     ('dup', InsDup),
     ('swap', InsSwap),
 
-    ('if_icmpeq', InsIIfCmpEq),
-    ('if_icmpne', InsIIfCmpNe),
-    ('if_icmpge', InsIIfCmpGe),
-    ('if_icmpgt', InsIIfCmpGt),
-    ('if_icmple', InsIIfCmpLe),
-    ('if_icmplt', InsIIfCmpLt),
+    ('if_icmpeq', InsIfICmpEq),
+    ('if_icmpne', InsIfICmpNe),
+    ('if_icmpge', InsIfICmpGe),
+    ('if_icmpgt', InsIfICmpGt),
+    ('if_icmple', InsIfICmpLe),
+    ('if_icmplt', InsIfICmpLt),
 
-    ('if_fcmpeq', InsFIfCmpEq),
-    ('if_fcmpne', InsFIfCmpNe),
-    ('if_fcmpge', InsFIfCmpGe),
-    ('if_fcmpgt', InsFIfCmpGt),
-    ('if_fcmple', InsFIfCmpLe),
-    ('if_fcmplt', InsFIfCmpLt),
+    ('if_fcmpeq', InsIfFCmpEq),
+    ('if_fcmpne', InsIfFCmpNe),
+    ('if_fcmpge', InsIfFCmpGe),
+    ('if_fcmpgt', InsIfFCmpGt),
+    ('if_fcmple', InsIfFCmpLe),
+    ('if_fcmplt', InsIfFCmpLt),
 
     ('ifnonnull', InsIfNonNull),
     ('ifnull', InsIfNull),
@@ -703,10 +681,19 @@ keywords = OrderedDict([
     ('newarray', InsNewArray),
     ('aload', InsALoad),
     ('astore', InsAStore),
-    ('aiload', InsAILoad),
-    ('afload', InsAFLoad),
-    ('aistore', InsAIStore),
-    ('afstore', InsAFStore),
+    ('iaload', InsIALoad),
+    ('faload', InsFALoad),
+    ('iastore', InsIAStore),
+    ('fastore', InsFAStore),
     ('arraylength', InsArrayLength),
     ('areturn', InsAReturn)
 ])
+
+
+def contain_value(inst, value):
+    if issubclass(inst, InsArgInteger):
+        return ValueInt(value)
+    elif issubclass(inst, InsArgFloat):
+        return ValueFloat(value)
+    else:
+        raise ValueException('instruction %s cannot contain value int or float' % inst)

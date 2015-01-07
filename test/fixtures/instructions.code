@@ -2,16 +2,26 @@ func:
     name: f
     args:
         - type: int
+          label: a
+    type: int
+
 lvars:
     - label: x
       type: int
     - type: int
+      label: b
     - label: y
       type: float
 ins:
+    - label: a1
     - ipush: 10
+    - label: a2
     - ipush: 11
+    - label: a3
     - iadd
-    - istore: 0
+    - label: a4
+    - istore: a
+    - label: a5
     - iload: x
+    - label: a6
     - ireturn

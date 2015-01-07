@@ -435,7 +435,7 @@ value1 ->
 value1: generic array
 ```
 
-## aiload
+## iaload
 load an int from an array
 ####argument
 no arguments
@@ -447,7 +447,7 @@ value2: integer
 value3: integer
 ```
 
-## afload
+## faload
 load an float from an array
 ####argument
 no arguments
@@ -459,7 +459,7 @@ value2: integer
 value3: float
 ```
 
-## aistore
+## iastore
 store an int to array index
 ####argument
 no arguments
@@ -471,7 +471,7 @@ value2: integer
 value3: integer
 ```
 
-## afstore
+## fastore
 store an float to array index
 ####argument
 no arguments

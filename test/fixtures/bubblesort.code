@@ -11,6 +11,8 @@ func:
     args:
         - label: array
           type: intarray
+    type: intarray
+
 lvars:
     - label: index
       type: int
@@ -18,64 +20,63 @@ lvars:
       type: int
     - label: length
       type: int
+    - label: tmp
+      type: int
 
 ins:
     - aload: array
     - arraylength
-    - istore: length
+    - istore: length  # length = 0
+    - label: newpass
     - ipush: 0
-      label: newpass
     - dup
-    - istore: swapped
-    - istore: index
+    - istore: swapped  # swapped = false
+    - istore: index  # index = 0
+    - label: startloop
     - iload: index
-      label: startloop
     - ipush: 1
     - iadd
     - dup
+    - istore: index  # index += 1
     - iload: length
-    - if_icmpeq: endloop
-    - dup
-    - istore: index
+    - if_icmpeq: endloop  # if index == length: loop is over
     - aload: array
-    - swap
-    - aiload
+    - iload: index
+    - iaload
     - aload: array
     - iload: index
     - ipush: 1
     - isub
-    - aiload
-    - if_icmpge: startloop
+    - iaload
+    - if_icmpge: startloop  # if array[i] >= array[i - 1], move to next element
     - aload: array
     - iload: index
     - ipush: 1
     - isub
-    - aiload
+    - iaload
+    - istore: tmp  # tmp = array[i - 1]
 
     - aload: array
-    - iload: index
-    - aiload
-
-    - aload: array
-    - swap
     - iload: index
     - ipush: 1
     - isub
-    - swap
-    - aistore # bug
+    - aload: array
+    - iload: index
+    - iaload
+    - iastore  # index[i - 1] = index[i]
 
     - aload: array
-    - swap
     - iload: index
-    - swap
-    - aistore
-    - ipush: 1
-    - istore: swapped
-    - goto: startloop
+    - iload: tmp
+    - iastore  # index[i] = tmp
 
+    - ipush: 1
+    - istore: swapped  # swapped = true
+    - goto: startloop  # move to next element
+
+    - label: endloop
     - iload: swapped
-      label: endloop
     - ipush: 0
-    - if_icmpne: newpass
+    - if_icmpne: newpass  # if swapped == true, start sorting array again
     - aload: array
-    - areturn
+    - areturn  # las pass did not swap any elements, array is sorted, return it

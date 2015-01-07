@@ -1,37 +1,30 @@
 # -*- coding: utf-8  -*-
 import sys
+if sys.version_info[0] != 3:
+    raise Exception('need Python 3k to run')
+
 import itertools
 import logging as log
 
-from .yparser import parse_file, parse_string
+from . import value_containers
+from .code_parser import parse_file, parse_string
 from .exceptions import RuntimeException
+from .analysis.verifier import Verifier
+from .analysis.interpreter import BasicVerifier
 
-from .values import ValueInt as INT
-from .values import ValueFloat as FLOAT
-from .values import ValueIntArrayRef as INTARRAY
-from .values import ValueFloatArrayRef as FLOATARRAY
-
-
-if sys.version_info[0] != 3:
-    raise Exception('need Python 3k to run')
 
 log.basicConfig(format='%(levelname)s %(message)s', level=log.DEBUG)
 
 
 class VM:
+
     def __init__(self, code=None):
         self.code = code
-        self.local_vars = []
+        self.variables = []
         self.stack = []
         self.pc = 0
         self.finished = False
         self.return_value = None
-
-    def stack_index(self, i):
-        try:
-            return self.stack[i]
-        except IndexError:
-            raise RuntimeException('accessing stack length %d at index %d' % (len(self.stack), i))
 
     def stack_push(self, v):
         self.stack.append(v)
@@ -41,6 +34,10 @@ class VM:
             return self.stack.pop()
         except IndexError:
             raise RuntimeException('stack is empty, cannot pop value')
+
+    def verify(self):
+        ver = Verifier(BasicVerifier())
+        ver.verify(self.code)
 
     def load_file_code(self, fname):
         self.code = parse_file(fname)
@@ -58,17 +55,13 @@ class VM:
         assign values from argument received to actual variables inside VM
         """
         self.check_arguments_count(args)
-        self.local_vars = []
-        for arg_value, loc_var in itertools.zip_longest(args, self.code.local_vars):
+        self.variables = []
+        for arg_value, loc_var in itertools.zip_longest(args, self.code.variables):
             if loc_var is None:
                 raise RuntimeException('more args than local vars')
-            if arg_value is not None:
-                if not loc_var.validatevalue(arg_value):
-                    raise RuntimeException(
-                        'argument %s does not match type %s' % (arg_value.__class__, loc_var.__class__))
-                self.local_vars.append(loc_var.__class__(arg_value))
-            else:
-                self.local_vars.append(loc_var.__class__())
+            lv = loc_var.copy()
+            lv.set_value(arg_value)
+            self.variables.append(lv)
 
     def run(self, *args):
         """
@@ -77,8 +70,10 @@ class VM:
         iterates the instruction list and executes instruction on index self.pc
         """
         log.info('{!s:<15}{}'.format('args', len(args)))
-        log.info('{!s:<15}{}'.format('local vars', len(self.code.local_vars)))
-        log.info('{!s:<15}{}'.format('instructions', len(self.code.instructions)))
+        log.info('{!s:<15}{}'.format('local vars', len(self.code.variables)))
+        log.info(
+            '{!s:<15}{}'.format('instructions', len(self.code.instructions)))
+        self.verify()
         self.assign_arguments(args)
         while not self.finished:
             if self.pc < 0:
@@ -86,18 +81,19 @@ class VM:
             if self.pc >= len(self.code.instructions):
                 raise RuntimeException('instruction pointer longer than code')
             ins = self.code.instructions[self.pc]
-            log.info("pc {!s:<7}{!s:<28}stack {}".format(self.pc, ins, self.stack))
+            log.info(
+                "pc {!s:<7}{!s:<28}stack {}".format(self.pc, ins, self.stack))
             ins.execute(self)
         return self.return_value
 
     @property
     def args_types(self):
         """
-        yield arguments (as Value* class) as defined in code source
+        yield arguments types as defined in code source
 
         """
         for i in range(self.code.argument_count):
-            yield self.code.local_vars[i]
+            yield self.code.variables[i].vtype
 
     def convert_args(self, args):
         """
@@ -106,10 +102,9 @@ class VM:
         self.check_arguments_count(args)
         cargs = []
         for i in range(self.code.argument_count):
-            lv = self.code.local_vars[i]
+            lv = self.code.variables[i]
             try:
-                cargs.append(lv.convertvalue(args[i]))
+                cargs.append(value_containers.convert_values(lv, args[i]))
             except ValueError:
-                raise RuntimeException(
-                    'cannot convert argument at possition {0} value:{1} to {2}'.format(i, args[i], lv.vtype))
+                raise RuntimeException('cannot convert argument at possition {0} value:{1} to {2}'.format(i, args[i], lv.vtype))
         return cargs
