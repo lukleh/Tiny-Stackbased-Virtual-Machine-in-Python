@@ -11,6 +11,7 @@ from .code_parser import parse_file, parse_string
 from .exceptions import RuntimeException
 from .analysis.verifier import Verifier
 from .analysis.interpreter import BasicVerifier
+from .frame import Frame
 
 
 log.basicConfig(format='%(levelname)s %(message)s', level=log.DEBUG)
@@ -18,50 +19,33 @@ log.basicConfig(format='%(levelname)s %(message)s', level=log.DEBUG)
 
 class VM:
 
-    def __init__(self, code=None):
-        self.code = code
-        self.variables = []
-        self.stack = []
-        self.pc = 0
-        self.finished = False
-        self.return_value = None
-
-    def stack_push(self, v):
-        self.stack.append(v)
-
-    def stack_pop(self):
-        try:
-            return self.stack.pop()
-        except IndexError:
-            raise RuntimeException('stack is empty, cannot pop value')
+    def __init__(self):
+        self.method = None
+        self.frame = None
 
     def verify(self):
         ver = Verifier(BasicVerifier())
-        ver.verify(self.code)
+        ver.verify(self.method)
 
     def load_file_code(self, fname):
-        self.code = parse_file(fname)
+        self.method = parse_file(fname)
 
     def load_string_code(self, data):
-        self.code = parse_string(data)
+        self.method = parse_string(data)
 
-    def check_arguments_count(self, args):
-        if len(args) != self.code.argument_count:
-            raise RuntimeException('number of function arguments (%s) does not match number of passed arguments (%s)' %
-                                   (self.code.argument_count, len(args)))
-
-    def assign_arguments(self, args):
+    def contain_arguments(self, args):
         """
         assign values from argument received to actual variables inside VM
         """
         self.check_arguments_count(args)
-        self.variables = []
-        for arg_value, loc_var in itertools.zip_longest(args, self.code.variables):
+        variables = []
+        for arg_value, loc_var in itertools.zip_longest(args, self.method.variables):
             if loc_var is None:
                 raise RuntimeException('more args than local vars')
             lv = loc_var.copy()
             lv.set_value(arg_value)
-            self.variables.append(lv)
+            variables.append(lv)
+        return variables
 
     def run(self, *args):
         """
@@ -70,21 +54,31 @@ class VM:
         iterates the instruction list and executes instruction on index self.pc
         """
         log.info('{!s:<15}{}'.format('args', len(args)))
-        log.info('{!s:<15}{}'.format('local vars', len(self.code.variables)))
+        log.info('{!s:<15}{}'.format('local vars', len(self.method.variables)))
         log.info(
-            '{!s:<15}{}'.format('instructions', len(self.code.instructions)))
+            '{!s:<15}{}'.format('instructions', len(self.method.code)))
         self.verify()
-        self.assign_arguments(args)
-        while not self.finished:
-            if self.pc < 0:
-                raise RuntimeException('instruction pointer less than zero')
-            if self.pc >= len(self.code.instructions):
-                raise RuntimeException('instruction pointer longer than code')
-            ins = self.code.instructions[self.pc]
+        arguments = self.contain_arguments(args)
+        self.frame = Frame(self.method, arguments)
+        while not self.frame.finished:
+            ins = self.frame.instructions[self.frame.pc]
             log.info(
-                "pc {!s:<7}{!s:<28}stack {}".format(self.pc, ins, self.stack))
-            ins.execute(self)
-        return self.return_value
+                "pc {!s:<7}{!s:<28}stack {}".format(self.frame.pc, ins, self.frame.stack))
+            self.exec_frame(self.frame, ins)
+        return self.frame.return_value
+
+    @classmethod
+    def exec_frame(cls, frame, ins):
+        ins.execute(frame)
+        frame.pc += 1
+
+    def run_cmd(self, cmd_args):
+        pargs = []
+        for i, _ in enumerate(self.args_types):
+            name = 'arg%d' % i
+            pargs.append(getattr(cmd_args, name))
+        cargs = self.convert_args(pargs)
+        return self.run(*cargs)
 
     @property
     def args_types(self):
@@ -92,8 +86,13 @@ class VM:
         yield arguments types as defined in code source
 
         """
-        for i in range(self.code.argument_count):
-            yield self.code.variables[i].vtype
+        for i in range(self.method.argument_count):
+            yield self.method.variables[i].vtype
+
+    def check_arguments_count(self, args):
+        if len(args) != self.method.argument_count:
+            raise RuntimeException('number of function arguments (%s) does not match number of passed arguments (%s)' %
+                                   (self.method.argument_count, len(args)))
 
     def convert_args(self, args):
         """
@@ -101,8 +100,9 @@ class VM:
         """
         self.check_arguments_count(args)
         cargs = []
-        for i in range(self.code.argument_count):
-            lv = self.code.variables[i]
+        for i in range(self.method.argument_count):
+            lv = self.method.variables[i]
+            print(i, lv)
             try:
                 cargs.append(value_containers.convert_values(lv, args[i]))
             except ValueError:

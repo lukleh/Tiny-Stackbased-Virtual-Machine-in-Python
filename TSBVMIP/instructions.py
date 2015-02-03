@@ -69,13 +69,11 @@ class InsBranch(InsArgILabel):
 class InsCompareBase(InsBranch):
     opr = lambda a, b, c: None
 
-    def execute(self, vm):
-        val2 = vm.stack_pop()
-        val1 = vm.stack_pop()
+    def execute(self, frame):
+        val2 = frame.stack.pop()
+        val1 = frame.stack.pop()
         if self.opr(val1.value, val2.value):
-            vm.pc = self.argument.value
-        else:
-            vm.pc += 1
+            frame.pc = self.argument.value - 1
 
 
 class InsICompareBase(InsCompareBase):
@@ -89,12 +87,11 @@ class InsFCompareBase(InsCompareBase):
 class InsMathBase(InsNoArgument):
     opr = lambda a, b, cs: None
 
-    def execute(self, vm):
-        val2 = vm.stack_pop()
-        val1 = vm.stack_pop()
+    def execute(self, frame):
+        val2 = frame.stack.pop()
+        val1 = frame.stack.pop()
         pval = self.opr(val1, val2)
-        vm.stack_push(pval)
-        vm.pc += 1
+        frame.stack.append(pval)
 
 
 class InsIMathBase(InsMathBase):
@@ -107,21 +104,19 @@ class InsFMathBase(InsMathBase):
 
 class InsArrayLoad(InsNoArgument):
 
-    def execute(self, vm):
-        index = vm.stack_pop().value
-        arr = vm.stack_pop()
-        vm.stack_push(arr[index])
-        vm.pc += 1
+    def execute(self, frame):
+        index = frame.stack.pop().value
+        arr = frame.stack.pop()
+        frame.stack.append(arr[index])
 
 
 class InsArrayStore(InsNoArgument):
 
-    def execute(self, vm):
-        value = vm.stack_pop()
-        index = vm.stack_pop().value
-        arr = vm.stack_pop()
+    def execute(self, frame):
+        value = frame.stack.pop()
+        index = frame.stack.pop().value
+        arr = frame.stack.pop()
         arr[index] = value
-        vm.pc += 1
 
 
 ###########################################################
@@ -138,9 +133,8 @@ class InsIPush(InsArgInteger):
     """
     opcode = opcodes.IPUSH
 
-    def execute(self, vm):
-        vm.stack_push(self.argument)
-        vm.pc += 1
+    def execute(self, frame):
+        frame.stack.append(self.argument)
 
 
 class InsFPush(InsArgFloat):
@@ -150,9 +144,8 @@ class InsFPush(InsArgFloat):
     """
     opcode = opcodes.FPUSH
 
-    def execute(self, vm):
-        vm.stack_push(self.argument)
-        vm.pc += 1
+    def execute(self, frame):
+        frame.stack.append(self.argument)
 
 
 class InsILoad(InsArgILabel):
@@ -162,9 +155,8 @@ class InsILoad(InsArgILabel):
     """
     opcode = opcodes.ILOAD
 
-    def execute(self, vm):
-        vm.stack_push(vm.variables[self.argument.value])
-        vm.pc += 1
+    def execute(self, frame):
+        frame.stack.append(frame.variables[self.argument.value])
 
 
 class InsFLoad(InsArgILabel):
@@ -174,9 +166,8 @@ class InsFLoad(InsArgILabel):
     """
     opcode = opcodes.FLOAD
 
-    def execute(self, vm):
-        vm.stack_push(vm.variables[self.argument.value])
-        vm.pc += 1
+    def execute(self, frame):
+        frame.stack.append(frame.variables[self.argument.value])
 
 
 class InsIStore(InsArgILabel):
@@ -186,9 +177,8 @@ class InsIStore(InsArgILabel):
     """
     opcode = opcodes.ISTORE
 
-    def execute(self, vm):
-        vm.variables[self.argument.value] = vm.stack_pop()
-        vm.pc += 1
+    def execute(self, frame):
+        frame.variables[self.argument.value] = frame.stack.pop()
 
 
 class InsFStore(InsArgILabel):
@@ -198,9 +188,8 @@ class InsFStore(InsArgILabel):
     """
     opcode = opcodes.FSTORE
 
-    def execute(self, vm):
-        vm.variables[self.argument.value] = vm.stack_pop()
-        vm.pc += 1
+    def execute(self, frame):
+        frame.variables[self.argument.value] = frame.stack.pop()
 
 
 class InsGoto(InsJump):
@@ -210,8 +199,8 @@ class InsGoto(InsJump):
     """
     opcode = opcodes.GOTO
 
-    def execute(self, vm):
-        vm.pc = self.argument.value
+    def execute(self, frame):
+        frame.pc = self.argument.value - 1
 
 
 class InsIReturn(InsReturn):
@@ -221,9 +210,9 @@ class InsIReturn(InsReturn):
     """
     opcode = opcodes.IRETURN
 
-    def execute(self, vm):
-        vm.finished = True
-        vm.return_value = vm.stack_pop()
+    def execute(self, frame):
+        frame.finished = True
+        frame.return_value = frame.stack.pop()
 
 
 class InsFReturn(InsReturn):
@@ -233,9 +222,9 @@ class InsFReturn(InsReturn):
     """
     opcode = opcodes.FRETURN
 
-    def execute(self, vm):
-        vm.finished = True
-        vm.return_value = vm.stack_pop()
+    def execute(self, frame):
+        frame.finished = True
+        frame.return_value = frame.stack.pop()
 
 
 class InsNop(InsNoArgument):
@@ -245,8 +234,8 @@ class InsNop(InsNoArgument):
     """
     opcode = opcodes.NOP
 
-    def execute(self, vm):
-        vm.pc += 1
+    def execute(self, frame):
+        pass
 
 
 class InsPop(InsNoArgument):
@@ -256,9 +245,8 @@ class InsPop(InsNoArgument):
     """
     opcode = opcodes.POP
 
-    def execute(self, vm):
-        vm.stack_pop()
-        vm.pc += 1
+    def execute(self, frame):
+        frame.stack.pop()
 
 
 class InsDup(InsNoArgument):
@@ -268,11 +256,10 @@ class InsDup(InsNoArgument):
     """
     opcode = opcodes.DUP
 
-    def execute(self, vm):
-        val = vm.stack_pop()
-        vm.stack_push(val)
-        vm.stack_push(val.copy())
-        vm.pc += 1
+    def execute(self, frame):
+        val = frame.stack.pop()
+        frame.stack.append(val)
+        frame.stack.append(val.copy())
 
 
 class InsSwap(InsNoArgument):
@@ -282,12 +269,11 @@ class InsSwap(InsNoArgument):
     """
     opcode = opcodes.SWAP
 
-    def execute(self, vm):
-        val1 = vm.stack_pop()
-        val2 = vm.stack_pop()
-        vm.stack_push(val1)
-        vm.stack_push(val2)
-        vm.pc += 1
+    def execute(self, frame):
+        val1 = frame.stack.pop()
+        val2 = frame.stack.pop()
+        frame.stack.append(val1)
+        frame.stack.append(val2)
 
 
 class InsIfICmpEq(InsICompareBase):
@@ -405,12 +391,10 @@ class InsIfNonNull(InsBranch):
     """
     opcode = opcodes.IFNONNULL
 
-    def execute(self, vm):
-        val = vm.stack_pop()
+    def execute(self, frame):
+        val = frame.stack.pop()
         if not val.is_none:
-            vm.pc = self.argument.value
-        else:
-            vm.pc += 1
+            frame.pc = self.argument.value - 1
 
 
 class InsIfNull(InsBranch):
@@ -420,12 +404,10 @@ class InsIfNull(InsBranch):
     """
     opcode = opcodes.IFNULL
 
-    def execute(self, vm):
-        val = vm.stack_pop()
+    def execute(self, frame):
+        val = frame.stack.pop()
         if val.is_none:
-            vm.pc = self.argument.value
-        else:
-            vm.pc += 1
+            frame.pc = self.argument.value - 1
 
 
 class InsIAdd(InsIMathBase):
@@ -507,11 +489,10 @@ class InsFloat2Int(InsNoArgument):
     """
     opcode = opcodes.F2I
 
-    def execute(self, vm):
-        val1 = vm.stack_pop()
+    def execute(self, frame):
+        val1 = frame.stack.pop()
         pval = int(val1.value)
-        vm.stack_push(ValueInt(pval))
-        vm.pc += 1
+        frame.stack.append(ValueInt(pval))
 
 
 class InsInt2Float(InsNoArgument):
@@ -521,11 +502,10 @@ class InsInt2Float(InsNoArgument):
     """
     opcode = opcodes.I2F
 
-    def execute(self, vm):
-        val1 = vm.stack_pop()
+    def execute(self, frame):
+        val1 = frame.stack.pop()
         pval = float(val1.value)
-        vm.stack_push(ValueFloat(pval))
-        vm.pc += 1
+        frame.stack.append(ValueFloat(pval))
 
 
 class InsNewArray(InsArgInteger):
@@ -544,12 +524,11 @@ class InsNewArray(InsArgInteger):
         else:
             raise InstructionException('newarray can accept only type 0 or 1, received %s' % self.argument.value)
 
-    def execute(self, vm):
-        size = vm.stack_pop().value
+    def execute(self, frame):
+        size = frame.stack.pop().value
         arr = self.array_type()
         arr.allocate(asize=size)
-        vm.stack_push(arr)
-        vm.pc += 1
+        frame.stack.append(arr)
 
 
 class InsALoad(InsArgILabel):
@@ -559,9 +538,8 @@ class InsALoad(InsArgILabel):
     """
     opcode = opcodes.ALOAD
 
-    def execute(self, vm):
-        vm.stack_push(vm.variables[self.argument.value])
-        vm.pc += 1
+    def execute(self, frame):
+        frame.stack.append(frame.variables[self.argument.value])
 
 
 class InsAStore(InsArgILabel):
@@ -571,9 +549,8 @@ class InsAStore(InsArgILabel):
     """
     opcode = opcodes.ASTORE
 
-    def execute(self, vm):
-        vm.variables[self.argument.value] = vm.stack_pop()
-        vm.pc += 1
+    def execute(self, frame):
+        frame.variables[self.argument.value] = frame.stack.pop()
 
 
 class InsIALoad(InsArrayLoad):
@@ -599,10 +576,9 @@ class InsArrayLength(InsNoArgument):
     """
     opcode = opcodes.ARRAYLENGTH
 
-    def execute(self, vm):
-        arr = vm.stack_pop()
-        vm.stack_push(ValueInt(arr.length))
-        vm.pc += 1
+    def execute(self, frame):
+        arr = frame.stack.pop()
+        frame.stack.append(ValueInt(arr.length))
 
 
 class InsIAStore(InsArrayStore):
@@ -628,9 +604,9 @@ class InsAReturn(InsReturn):
     """
     opcode = opcodes.ARETURN
 
-    def execute(self, vm):
-        vm.finished = True
-        vm.return_value = vm.stack_pop()
+    def execute(self, frame):
+        frame.finished = True
+        frame.return_value = frame.stack.pop()
 
 
 keywords = OrderedDict([

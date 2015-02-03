@@ -5,7 +5,7 @@ import fixtures
 from TSBVMIP import instructions
 from TSBVMIP import value_containers
 from TSBVMIP.code_parser import parse_string
-from TSBVMIP.code import Code
+from TSBVMIP.method import Method
 from TSBVMIP.analysis import controlflow
 from TSBVMIP.analysis.controlflow import BasicBlock
 
@@ -13,64 +13,64 @@ from TSBVMIP.analysis.controlflow import BasicBlock
 def test_flow_instructions():
     # make sure no instruction fall through
     for name, i in instructions.keywords.items():
-        c = Code()
+        m = Method()
         anz = controlflow.ControlFlowAnalyzer()
         if issubclass(i, instructions.InsGoto):
-            c.instructions.append(i(value_containers.ValueInt(3)))
-            c.instructions.append(instructions.InsNop())
-            c.instructions.append(instructions.InsNop())
-            c.instructions.append(instructions.InsNop())
-            anz.analyze(c)
+            m.code.append(i(value_containers.ValueInt(3)))
+            m.code.append(instructions.InsNop())
+            m.code.append(instructions.InsNop())
+            m.code.append(instructions.InsNop())
+            anz.analyze(m)
             assert anz.basic_blocks == [BasicBlock(instruction_indexes=[0], sucessors=[None]),
                                         BasicBlock(instruction_indexes=[1, 2], sucessors=[None]),
                                         BasicBlock(instruction_indexes=[3], predecessors=[None, None])]
         elif issubclass(i, instructions.InsBranch):
-            c.instructions.append(instructions.InsNop())
-            c.instructions.append(i(value_containers.ValueInt(0)))
-            anz.analyze(c)
+            m.code.append(instructions.InsNop())
+            m.code.append(i(value_containers.ValueInt(0)))
+            anz.analyze(m)
             assert anz.basic_blocks == [BasicBlock(instruction_indexes=[0, 1], sucessors=[None], predecessors=[None])]
         elif not issubclass(i, instructions.InsReturn):
             if issubclass(i, instructions.InsNoArgument):
-                c.instructions.append(i())
+                m.code.append(i())
             elif issubclass(i, instructions.InsArgInteger):
-                c.instructions.append(i(value_containers.ValueInt(1)))
+                m.code.append(i(value_containers.ValueInt(1)))
             elif issubclass(i, instructions.InsArgFloat):
-                c.instructions.append(i(value_containers.ValueFloat(5.0)))
+                m.code.append(i(value_containers.ValueFloat(5.0)))
             else:
                 assert False
-            anz.analyze(c)
+            anz.analyze(m)
             assert anz.basic_blocks == [BasicBlock(instruction_indexes=[0])]
         elif issubclass(i, instructions.InsReturn):
-            c.instructions.append(i())
-            anz.analyze(c)
+            m.code.append(i())
+            anz.analyze(m)
             assert anz.basic_blocks == [BasicBlock(instruction_indexes=[0])]
         else:
             assert False
 
 
 def test_basic_block_simple():
-    c = Code()
-    c.instructions = [
+    m = Method()
+    m.code = [
         instructions.InsIPush(value_containers.ValueInt(1)),
         instructions.InsIReturn()
     ]
     anz = controlflow.ControlFlowAnalyzer()
-    anz.analyze(c)
+    anz.analyze(m)
     assert len(anz.basic_blocks) == 1
     assert anz.basic_blocks == [BasicBlock(instruction_indexes=[0, 1])]
 
 
 def test_basic_block_complex():
-    c = parse_string(fixtures.load('sum.code'))
+    m = parse_string(fixtures.load('sum.code'))
     anz = controlflow.ControlFlowAnalyzer()
-    anz.analyze(c)
+    anz.analyze(m)
     assert len(anz.basic_blocks) == 4
     assert [bb.instruction_indexes for bb in anz.basic_blocks] == [
         [0, 1, 2, 3], [4, 5, 6, 7, 8, 9], [10, 11, 12, 13, 14, 15], [16, 17]]
 
-    c = parse_string(fixtures.load('bubblesort.code'))
+    m = parse_string(fixtures.load('bubblesort.code'))
     anz = controlflow.ControlFlowAnalyzer()
-    anz.analyze(c)
+    anz.analyze(m)
     assert len(anz.basic_blocks) == 7
     assert [bb.instruction_indexes for bb in anz.basic_blocks] == [[0, 1, 2],
                                                                    [3, 4, 5, 6],
@@ -84,37 +84,37 @@ def test_basic_block_complex():
 
 
 def test_basic_block_oneblock():
-    c = Code()
+    m = Method()
     anz = controlflow.ControlFlowAnalyzer()
-    c.instructions.append(instructions.InsNop())
-    c.instructions.append(instructions.InsNop())
-    c.instructions.append(instructions.InsNop())
-    anz.analyze(c)
+    m.code.append(instructions.InsNop())
+    m.code.append(instructions.InsNop())
+    m.code.append(instructions.InsNop())
+    anz.analyze(m)
     assert anz.basic_blocks == [BasicBlock(instruction_indexes=[0, 1, 2])]
 
 
 def test_basic_block_onejumpback():
-    c = Code()
+    m = Method()
     anz = controlflow.ControlFlowAnalyzer()
-    c.instructions.append(instructions.InsNop())
-    c.instructions.append(instructions.InsNop())
-    c.instructions.append(instructions.InsNop())
-    c.instructions.append(instructions.InsGoto(value_containers.ValueInt(0)))
-    c.instructions.append(instructions.InsNop())
-    anz.analyze(c)
+    m.code.append(instructions.InsNop())
+    m.code.append(instructions.InsNop())
+    m.code.append(instructions.InsNop())
+    m.code.append(instructions.InsGoto(value_containers.ValueInt(0)))
+    m.code.append(instructions.InsNop())
+    anz.analyze(m)
     assert anz.basic_blocks == [BasicBlock(instruction_indexes=[0, 1, 2, 3], sucessors=[None], predecessors=[None]),
                                 BasicBlock(instruction_indexes=[4])]
 
 
 def test_basic_block_onejumpforward():
-    c = Code()
+    m = Method()
     anz = controlflow.ControlFlowAnalyzer()
-    c.instructions.append(instructions.InsGoto(value_containers.ValueInt(3)))
-    c.instructions.append(instructions.InsNop())
-    c.instructions.append(instructions.InsNop())
-    c.instructions.append(instructions.InsNop())
-    c.instructions.append(instructions.InsNop())
-    anz.analyze(c)
+    m.code.append(instructions.InsGoto(value_containers.ValueInt(3)))
+    m.code.append(instructions.InsNop())
+    m.code.append(instructions.InsNop())
+    m.code.append(instructions.InsNop())
+    m.code.append(instructions.InsNop())
+    anz.analyze(m)
     assert anz.basic_blocks == [BasicBlock(instruction_indexes=[0], sucessors=[None]),
                                 BasicBlock(instruction_indexes=[1, 2], sucessors=[None]),
                                 BasicBlock(instruction_indexes=[3, 4], predecessors=[None, None])]

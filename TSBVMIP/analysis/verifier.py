@@ -14,59 +14,61 @@ class Verifier():
         self.changed = None
         self.frames = None
         self.queue = []
-        self.code = None
+        self.method = None
 
-    def verify(self, code):
-        self.verify_jump_points(code)
-        self.verify_load_store_vars(code)
-        self.verify_return(code)
-        self.verify_values(code)
+    def verify(self, method):
+        self.verify_jump_points(method)
+        self.verify_load_store_vars(method)
+        self.verify_return(method)
+        self.verify_values(method)
         return True
 
-    def verify_jump_points(self, code):
-        for i, inst in enumerate(code.instructions):
+    def verify_jump_points(self, method):
+        for i, inst in enumerate(method.code):
             if inst.opcode == opcodes.GOTO or isinstance(inst, InsBranch):
-                if inst.argument.value < 0 or inst.argument.value >= code.ins_count:
-                    raise VerifyException('instruction %s jump target %s outside boundary <0, %s>' % (inst, inst.argument.value, code.ins_count - 1))
+                if inst.argument.value < 0 or inst.argument.value >= len(method.code):
+                    raise VerifyException('instruction %s jump target %s outside boundary <0, %s>' %
+                                          (inst, inst.argument.value, len(method.code) - 1))
         return True
 
-    def verify_load_store_vars(self, code):
-        for inst in code.instructions:
+    def verify_load_store_vars(self, method):
+        for inst in method.code:
             if inst.opcode in [opcodes.ISTORE, opcodes.FSTORE, opcodes.ASTORE]:
                 pos = inst.argument.value
-                lv = code.get_var(pos)
+                lv = method.variables[pos]
                 vt = self.interpreter.new_value(lv.vtype)
                 self.interpreter.copy_operation(inst, vt)
         return True
 
-    def verify_return(self, code):
+    def verify_return(self, method):
         cfa = ControlFlowAnalyzer()
-        bbs = cfa.analyze(code)
+        bbs = cfa.analyze(method)
         for bb in bbs:
-            end_ins = code.instructions[bb.end_inst_index]
+            end_ins = method.code[bb.end_inst_index]
             if not bb.sucessors and not isinstance(end_ins, InsReturn):
                 raise VerifyException('leaf basic block does not end with return instruction, but wirh %s' % end_ins)
         return True
 
-    def verify_values(self, code):
-        self.code = code
-        self.changed = [False for _ in code.instructions]
-        self.frames = [None for _ in code.instructions]
+    def verify_values(self, method):
+        self.method = method
+        self.changed = [False for _ in method.code]
+        self.frames = [None for _ in method.code]
 
         current = Frame()
-        current.set_return(self.interpreter.new_value(code.return_type.vtype))
-        for arg in code.arguments:
-            current.add_local(self.interpreter.new_value(arg.vtype))
-        for _ in code.local_variables:
-            current.add_local(self.interpreter.new_value(None))
-        for v in code.variables:
+        current.set_return(self.interpreter.new_value(method.return_type.vtype))
+
+        for i, v in enumerate(method.variables):
+            if i < method.argument_count:
+                current.add_local(self.interpreter.new_value(v.vtype))
+            else:
+                current.add_local(self.interpreter.new_value(None))
             current.add_local_type(self.interpreter.new_value(v.vtype))
 
         self.merge(0, current)
 
         while self.queue:
             ins_int = self.queue.pop()
-            ins = code.instructions[ins_int]
+            ins = method.code[ins_int]
             frame = self.frames[ins_int]
             self.changed[ins_int] = False
 

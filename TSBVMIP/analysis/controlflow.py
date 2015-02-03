@@ -53,14 +53,14 @@ class ControlFlowAnalyzer():
         self.jump_target = defaultdict(list)
         self.jump_source = defaultdict(list)
 
-    def analyze(self, code):
-        self.find_jump_points(code)
-        self.scan_basic_blocks(code)
-        self.connect_basic_blocks(code)
+    def analyze(self, method):
+        self.find_jump_points(method)
+        self.scan_basic_blocks(method)
+        self.connect_basic_blocks(method)
         return self.basic_blocks
 
-    def find_jump_points(self, code):
-        for i, ins in enumerate(code.instructions):
+    def find_jump_points(self, method):
+        for i, ins in enumerate(method.code):
             if isinstance(ins, InsGoto) or isinstance(ins, InsBranch):
                 self.jump_target[ins.argument.value].append(i)
                 self.jump_source[i].append(ins.argument.value)
@@ -68,9 +68,9 @@ class ControlFlowAnalyzer():
                 self.jump_target[i + 1].append(i)
                 self.jump_source[i].append(i + 1)
 
-    def scan_basic_blocks(self, code):
+    def scan_basic_blocks(self, method):
         bb = BasicBlock()
-        for i, ins in enumerate(code.instructions):
+        for i, ins in enumerate(method.code):
             if i in self.jump_target:
                 bb_prev = bb
                 bb = BasicBlock()
@@ -89,9 +89,9 @@ class ControlFlowAnalyzer():
         if not bb.is_empty:
             self.basic_blocks.append(bb)
 
-    def connect_basic_blocks(self, code):
+    def connect_basic_blocks(self, method):
         for bb in self.basic_blocks:
-            if not isinstance(code.instructions[bb.end_inst_index], InsReturn):
+            if not isinstance(method.code[bb.end_inst_index], InsReturn):
                 for source in self.jump_source[bb.end_inst_index]:
                     for bbb in self.basic_blocks:
                         if bbb.start_inst_index == source:

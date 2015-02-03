@@ -95,39 +95,38 @@ def test_arguments():
 
 
 def test_code():
-    c = parser.process_yaml(clean_code)
-    assert c.var_count == 4
+    m = parser.process_yaml(clean_code)
+    assert len(m.variables) == 4
 
 
 def test_func():
-    p = parser.parse_string(fixtures.load('func.code'))
-    assert p.function_name == 'multiple word name'
-    assert p.var_count == 2
-    assert p.argument_count == 2
-    assert p.labels == {'a': 0, 'L1': 1}
-    assert p.variables == [ValueInt(), ValueFloat()]
+    m = parser.parse_string(fixtures.load('func.code'))
+    assert m.function_name == 'multiple word name'
+    assert len(m.variables) == 2
+    assert m.argument_count == 2
+    assert m.labels == {'a': 0, 'L1': 1}
+    assert m.variables == [ValueInt(), ValueFloat()]
 
 
 def test_variables():
-    p = parser.parse_string(fixtures.load('variables.code'))
-    assert p.var_count == 4
-    assert p.argument_count == 1
-    assert p.labels == {'a': 0, 'x': 1, 'b': 2, 'y': 3}
-    assert p.variables == [ValueInt(), ValueInt(), ValueInt(), ValueFloat()]
+    m = parser.parse_string(fixtures.load('variables.code'))
+    assert len(m.variables) == 4
+    assert m.argument_count == 1
+    assert m.labels == {'a': 0, 'x': 1, 'b': 2, 'y': 3}
+    assert m.variables == [ValueInt(), ValueInt(), ValueInt(), ValueFloat()]
 
 
 def test_instructions():
-    p = parser.parse_string(fixtures.load('instructions.code'))
-    assert p.ins_count == 6
-    assert p.instructions == [ins.InsIPush(ValueInt(10)),
-                              ins.InsIPush(ValueInt(11)),
-                              ins.InsIAdd(),
-                              ins.InsIStore(ValueInt(0)),
-                              ins.InsILoad(ValueInt(1)),
-                              ins.InsIReturn()]
+    m = parser.parse_string(fixtures.load('instructions.code'))
+    assert len(m.code) == 6
+    assert m.code == [ins.InsIPush(ValueInt(10)),
+                      ins.InsIPush(ValueInt(11)),
+                      ins.InsIAdd(),
+                      ins.InsIStore(ValueInt(0)),
+                      ins.InsILoad(ValueInt(1)),
+                      ins.InsIReturn()]
 
 
 def test_whole():
-    p = parser.parse_string(fixtures.load('parse_ok.code'))
-    print(p)
-    assert p
+    m = parser.parse_string(fixtures.load('parse_ok.code'))
+    assert m

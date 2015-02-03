@@ -50,14 +50,5 @@ for i, lvt in enumerate(m.args_types):
         raise Exception('unknown type %s to add as parameter' % lvt)
 args = parser.parse_args()
 
-# arguments parsed ok, convert to list to pass for converting to TSBVMIP
-# values and further
-pargs = []
-for i, _ in enumerate(m.args_types):
-    name = 'arg%d' % i
-    pargs.append(vars(args)[name])
-
-cargs = m.convert_args(pargs)
-print(cargs)
-# and now run with ready arguments
-print('RETURN', m.run(*cargs))
+# arguments parsed ok, run
+print('RETURN', m.run_cmd(args))
